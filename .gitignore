@@ -1,5 +1,5 @@
-dist/**
-!dist
+./dist/**
+!./dist
 
 ### Terraform template
 # Local .terraform directories

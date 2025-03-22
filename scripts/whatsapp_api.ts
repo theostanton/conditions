@@ -1,0 +1,3 @@
+export const headers: HeadersInit = new Headers();
+headers.set('Content-Type', 'application/json');
+headers.set('Auhtorization', 'Bearer EAANme43LYk0BO6WKhMsOER215PwoLbFnJjlJ4ZBEc8ZAp10yyDbyUqnIIh2g0uvQw4eXbqLzRZAguObLO3stQO9vrZCsKXcPbe6LU0GZBLIDN4UIf0jEXfXBqPerFoNvCLdZB7HZBjNArPLSXSZBrbdHq4RQQaTugzIIeBtFsWGRn6GRcKRMrl56qGEpLIhdPe7k8h7LQv0YeVkeqZBDTlFgI7zWuJRtIrGFj5nsZD')

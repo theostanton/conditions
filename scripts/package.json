@@ -1,0 +1,19 @@
+{
+  "name": "scripts",
+  "author": "Vandelay Industries",
+  "version": "1.0.0",
+  "types": "../types/types.d.ts",
+  "scripts": {
+    "update-massifs": "tsx update_massifs.ts"
+  },
+  "dependencies": {
+    "pg-format": "^1.0.4",
+    "ts-postgres": "^2.0.4",
+    "typescript": "next",
+    "@google-cloud/storage": "^7.15.1"
+  },
+  "devDependencies": {
+    "ts-node": "10.9.2",
+    "tsx": "^4.19.2"
+  }
+}

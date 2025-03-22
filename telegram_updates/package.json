@@ -1,0 +1,30 @@
+{
+  "scripts": {
+    "tsc": "tsc --project tsconfig.json",
+    "cp-package": "copyfiles package.json dist",
+    "fetchUpdates": "ts-node src/fetchUpdates.ts",
+    "index": "ts-node src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ItoYo16u/cloud-function-typescript"
+  },
+  "author": "theostanton",
+  "name": "telegram-updates",
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "@grammyjs/menu": "^1.3.0",
+    "dotenv": "^16.4.7",
+    "grammy": "^1.35.0",
+    "ts-postgres": "^2.0.4"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "tslint": "^6.1.3",
+    "typescript": "^4.2.3"
+  }
+}

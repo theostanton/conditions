@@ -59,27 +59,14 @@ async function main() {
     massifs.forEach(massif => {
         subscribeMenu.text(massif.name, async context => {
             await subscribe(context.from?.id as number, massif)
-            await context.reply("You are now subscribed to " + massif.name)
+            await context.reply(`You are now subscribed to ${massif.name}`)
         }).row()
     })
 
     bot.use(subscribeMenu);
 
-    const unsubscribeMenu = new Menu("unsubscribe")
-
-    massifs.forEach(massif => {
-        unsubscribeMenu.text(massif.name, async context => {
-            await unsubscribe(context.from?.id as number, massif)
-            await context.reply("You are now unsubscribed from " + massif.name)
-        }).row()
-    })
-
-    bot.use(unsubscribeMenu);
-
 // Get
     bot.command("get", async (ctx) => {
-        console.log(ctx.message?.from)
-        console.log(ctx)
         await ctx.reply("Get the latest BRA", {reply_markup: getMenu});
     });
 
@@ -91,8 +78,24 @@ async function main() {
 
 // Unsubscribe
     bot.command("unsubscribe", async (ctx) => {
-        await ctx.reply("Unsubscribe from BRAs", {reply_markup: unsubscribeMenu});
+        const recipientMassifsResult = await client.query<Massif>("SELECT m.name, m.code FROM subscriptions_bras as sb left join massifs m on sb.massif = m.code WHERE sb.recipient = $1", [ctx.from?.id as number])
+        const recipientMassifs = [...recipientMassifsResult]
+
+        const keyboard = new Keyboard()
+
+        recipientMassifs.forEach(massif => {
+            keyboard.text(`Unsubscribe ${massif.name}`).row()
+        })
+
+        keyboard.resized(false)
+
+        await ctx.reply("Unsubscribe from BRAs", {reply_markup: keyboard});
     });
+
+    bot.hears(/Unsubscribe *(.+)?/, async (context) => {
+        await unsubscribe(context.from?.id as number, massif)
+        await context.reply(`You are now unsubscribed from ${context.message?.text}`)
+    })
 
     await bot.start();
 

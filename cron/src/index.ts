@@ -4,6 +4,8 @@ import {Client, connect} from "ts-postgres";
 import {createWriteStream} from "fs";
 import {Readable} from "stream";
 import {Storage} from '@google-cloud/storage';
+import {Bot} from "grammy";
+import * as assert from "node:assert";
 
 config()
 
@@ -16,6 +18,8 @@ console.log(headers)
 
 
 let client: Client
+
+const bot: Bot = new Bot(process.env.TELEGRAM_BOT_TOKEN as string)
 
 async function setup() {
     client = await connect({
@@ -123,8 +127,9 @@ async function generateFilename(bulletin: BulletinInfos) {
     return filename;
 }
 
-async function fetchAndStoreBulletins(newBulletinsToFetch: BulletinInfos[]) {
+async function fetchAndStoreBulletins(newBulletinsToFetch: BulletinInfos[]): Promise<Bulletin[]> {
 
+    const bulletins: Bulletin[] = []
     for (const bulletin of newBulletinsToFetch) {
 
         // Generate Filename
@@ -146,8 +151,53 @@ async function fetchAndStoreBulletins(newBulletinsToFetch: BulletinInfos[]) {
         await client.query("insert into bras (massif, filename, public_url, valid_from, valid_to) values ($1, $2, $3, $4, $5)", [bulletin.massif, filename, publicUrl, bulletin.valid_from, bulletin.valid_to])
         console.log(`Inserted into database`)
         console.log()
+
+        bulletins.push({...bulletin, filename, public_url: publicUrl})
     }
 
+    return bulletins
+
+}
+
+type BulletinDestination = {
+    recipients: string[],
+    massif: number,
+    filename: string,
+    public_url: string,
+}
+
+async function generateSubscriptionDestinations(bulletins: Bulletin[]): Promise<BulletinDestination[]> {
+    type Row = {
+        massif: number,
+        recipients: string
+    }
+    const result = await client.query<Row>(`select s.massif as massif, string_agg(s.recipient, ',') as recipients
+                                            from subscriptions_bras as s
+                                            group by s.massif;`
+    )
+    const rows: Row[] = [...result]
+    const destinations: BulletinDestination[] = []
+
+    for (const row of rows) {
+        const bulletin = bulletins.find(value => value.massif == row.massif)
+        if (bulletin != undefined) {
+            destinations.push({
+                recipients: row.recipients.split(","),
+                massif: row.massif,
+                filename: bulletin!!.filename,
+                public_url: bulletin!!.public_url
+            })
+        }
+    }
+    return destinations
+}
+
+async function send(destinations: BulletinDestination[]) {
+    for (const destination of destinations) {
+        for (const recipient of destination.recipients) {
+            await bot.api.sendDocument(recipient, destination.public_url)
+        }
+    }
 }
 
 async function main() {
@@ -160,11 +210,15 @@ async function main() {
     console.log()
 
     // Fetch + Store new Bulletins
-    await fetchAndStoreBulletins(newBulletinsToFetch)
+    const newBulletins = await fetchAndStoreBulletins(newBulletinsToFetch)
+    console.log(`newBulletins=${JSON.stringify(newBulletins)}`)
 
     // Check subscription difference
+    const destinations = await generateSubscriptionDestinations(newBulletins)
+    console.log(`destinations=${JSON.stringify(destinations)}`)
 
     // Send to subscribers
+    send(destinations)
 }
 
 main().then()

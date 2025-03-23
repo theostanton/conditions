@@ -1,17 +1,17 @@
 {
   "scripts": {
     "tsc": "tsc --project tsconfig.json",
-    "fetchUpdates": "ts-node src/fetchUpdates.ts",
     "index": "ts-node src/index.ts"
   },
   "author": "theostanton",
-  "name": "telegram-updates",
+  "name": "cron",
   "version": "0.1.0",
   "engines": {
     "node": ">=14.0.0"
   },
   "dependencies": {
-    "@grammyjs/menu": "^1.3.0",
+    "@google-cloud/storage": "^7.15.2",
+    "axios": "^1.8.4",
     "dotenv": "^16.4.7",
     "grammy": "^1.35.0",
     "ts-postgres": "^2.0.4"

@@ -51,7 +51,7 @@ async function upload(filename: string): Promise<string> {
 
 
 async function insertRow(client: Client, massifCode: number, filename: string, publicUrl: string): Promise<void> {
-  await client.query("INSERT INTO bras(massif, date, filename, public_url) VALUES ($1, $2, $3, $4)", [massifCode, "2025-02-0", filename, publicUrl]);
+  await client.query("INSERT INTO dist(massif, date, filename, public_url) VALUES ($1, $2, $3, $4)", [massifCode, "2025-02-0", filename, publicUrl]);
 }
 
 

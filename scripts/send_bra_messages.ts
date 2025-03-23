@@ -26,7 +26,7 @@ async function getBras(client: Client, subscriptions: BraSubscription[], date: s
 
   const massifs = subscriptions.reduce((acc, subscription) => acc.add(subscription.massifCode), new Set<number>())
 
-  const result = await client.query('SELECT massif,filename,public_url from bras WHERE massif = ANY($1) AND date = $2', [massifs, date])
+  const result = await client.query('SELECT massif,filename,public_url from dist WHERE massif = ANY($1) AND date = $2', [massifs, date])
 
   return result.rows.map<BraRow>((row) => {
     return {

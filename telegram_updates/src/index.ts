@@ -20,7 +20,7 @@ async function executeUnsubscribe(userId: number, massif: Massif) {
 }
 
 async function unsubscribeKeyboard(context: Context): Promise<Keyboard | undefined> {
-    const recipientMassifsResult = await client.query<Massif>("SELECT m.name, m.code FROM subscriptions_bras as sb left join massifs m on sb.massif = m.code WHERE sb.recipient = $1", [ctx.from?.id as number])
+    const recipientMassifsResult = await client.query<Massif>("SELECT m.name, m.code FROM subscriptions_bras as sb left join massifs m on sb.massif = m.code WHERE sb.recipient = $1", [context.from?.id as number])
     const recipientMassifs = [...recipientMassifsResult]
 
     if (recipientMassifs.length == 0) {
@@ -71,15 +71,13 @@ function commandSubscribe(subscribeMenu: Menu<Context>) {
     };
 }
 
-function commandGet(getMenu: Menu<Context>) {
+function commandGet(getMenu: Menu) {
     return async (context: Context) => {
         await context.reply("Get the latest BRA", {reply_markup: getMenu});
     };
 }
 
 async function main() {
-    const result = await client.query<Massif>("SELECT name,code FROM massifs ORDER BY name")
-    const allMassifs = [...result]
 
     const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN as string)
 
@@ -98,13 +96,31 @@ async function main() {
         ]);
     }
 
-    setup().then(() => console.log("Setup done."))
+    console.log('before')
+    await setup()
+    console.log('after')
+
+    const result = await client.query<Massif>("SELECT name,code FROM massifs ORDER BY name")
+    const allMassifs = [...result]
 
     const getMenu = new Menu("get")
 
     allMassifs.forEach(massif => {
         getMenu.text(massif.name, async context => {
-            await context.replyWithDocument("https://storage.googleapis.com/conditions-450312-bras/Aravis.pdf")
+            const result = await client.query<{
+                public_url: string,
+                valid_to: Date
+            }>("select b.public_url,b.valid_to from bras as b where b.massif = $1 order by b.valid_to desc limit 1;", [massif.code])
+            const publicUrl = [...result][0]?.public_url
+            const valid_to = [...result][0]?.valid_to
+
+            if (publicUrl == undefined) {
+                await context.reply(`No bulletin for ${massif.name}`)
+            } else if (valid_to < new Date()) {
+                await context.reply(`No valid bulletin for ${massif.name}`)
+            } else {
+                await context.replyWithDocument(publicUrl)
+            }
         }).row()
     })
 
@@ -125,6 +141,7 @@ async function main() {
     bot.command("subscribe", commandSubscribe(subscribeMenu));
     bot.command("unsubscribe", commandUnsubscribe(allMassifs));
 
+    console.log("Starting bot")
     await bot.start();
 
 }

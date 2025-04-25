@@ -5,7 +5,6 @@ import {createWriteStream} from "fs";
 import {Readable} from "stream";
 import {Storage} from '@google-cloud/storage';
 import {Bot} from "grammy";
-import * as assert from "node:assert";
 
 config()
 
@@ -218,7 +217,7 @@ async function main() {
     console.log(`destinations=${JSON.stringify(destinations)}`)
 
     // Send to subscribers
-    send(destinations)
+    await send(destinations)
 }
 
 main().then()

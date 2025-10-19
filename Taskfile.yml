@@ -1,0 +1,10 @@
+version: "3"
+
+includes:
+  infra: ./infra
+
+tasks:
+  deploy:
+    desc: Deploy
+    cmds:
+      - task: infra:apply

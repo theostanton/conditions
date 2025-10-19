@@ -9,7 +9,7 @@ resource "google_sql_database_instance" "instance" {
       ipv4_enabled = true
       authorized_networks {
         name  = "Chamonix"
-        value = "83.204.51.218/32"
+        value = "79.88.5.26/32"
       }
     }
     tier = "db-f1-micro"

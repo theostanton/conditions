@@ -1,0 +1,17 @@
+import { AxiosHeaders } from "axios";
+import { config } from "dotenv";
+
+config();
+
+export const PROJECT_ID = process.env.GOOGLE_PROJECT_ID as string;
+export const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN as string;
+export const METEOFRANCE_TOKEN = process.env.METEOFRANCE_TOKEN as string;
+
+export const PGHOST = process.env.PGHOST as string;
+export const PGDATABASE = process.env.PGDATABASE as string;
+export const PGUSER = process.env.PGUSER as string;
+export const PGPASSWORD = process.env.PGPASSWORD as string;
+
+export const meteoFranceHeaders: AxiosHeaders = new AxiosHeaders();
+meteoFranceHeaders.set('Content-Type', 'application/xml');
+meteoFranceHeaders.set('apikey', METEOFRANCE_TOKEN);

@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "es2019",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noImplicitReturns": true,
+    "outDir": "./dist",
+    "strictNullChecks": true,
+    "incremental": true,
+    "removeComments": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@config/*": ["config/*"],
+      "@database/*": ["database/*"],
+      "@bot/*": ["bot/*"],
+      "@cron/*": ["cron/*"],
+      "@app-types": ["types/index"],
+      "@utils/*": ["utils/*"]
+    }
+  },
+  "compileOnSave": true,
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

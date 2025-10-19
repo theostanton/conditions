@@ -13,7 +13,7 @@ provider "google-beta" {
   region  = local.region
 }
 
-# This is the service account in which the functions will act
+# This is the service account in which the functions.tf will act
 resource "google_service_account" "function-sa" {
   account_id   = "function-sa"
   description  = "Controls the workflow for the cloud pipeline"

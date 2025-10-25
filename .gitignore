@@ -336,7 +336,13 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-cd### macOS template
+# HTTP Client private environment
+http-client.private.env.json
+
+# Task cache
+.task/
+
+### macOS template
 # General
 .DS_Store
 .AppleDouble

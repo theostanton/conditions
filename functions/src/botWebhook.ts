@@ -16,18 +16,19 @@ async function initBot() {
     return bot;
 }
 
-// export default async function (req: Request, res: Response) {
-//     try {
-//         // Initialize bot on first request (cold start)
-//         const botInstance = await initBot();
-//
-//         // Use Grammy's webhook callback
-//         const handler = webhookCallback(botInstance, "gcf");
-//
-//         // Handle the request
-//         await handler(req, res);
-//     } catch (error) {
-//         console.error('Error handling webhook:', error);
-//         res.status(500).send('Internal Server Error');
-//     }
-// };
+export async function botWebhook(req: Request, res: Response) {
+    try {
+        // Initialize bot on first request (cold start)
+        const botInstance = await initBot();
+
+        // Use Grammy's webhook callback with express adapter
+        // (GCF functions-framework provides Express-like req/res)
+        const handler = webhookCallback(botInstance, "express");
+
+        // Handle the request
+        await handler(req as any, res as any);
+    } catch (error) {
+        console.error('Error handling webhook:', error);
+        res.status(500).send('Internal Server Error');
+    }
+};

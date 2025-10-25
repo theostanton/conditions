@@ -1,0 +1,27 @@
+version: "3"
+
+tasks:
+  build:
+    dir: functions/
+    desc: Build
+    sources:
+      - src/**/*.ts
+      - exclude: src/**/*.test.ts
+    generates:
+      - ./dist/
+    cmds:
+      - rm -rf ./dist/*
+      - yarn build
+      - cp package.prod.json dist/package.json
+
+  apply:
+    dir: infra/
+    desc: Apply
+    cmds:
+      - terraform apply -auto-approve
+
+  init:
+    dir: infra/
+    desc: Init
+    cmds:
+      - terraform init

@@ -1,5 +1,6 @@
-./dist/**
-!./dist
+# Build output
+dist/
+*.zip
 
 ### Terraform template
 # Local .terraform directories
@@ -341,6 +342,13 @@ http-client.private.env.json
 
 # Task cache
 .task/
+
+# Downloaded PDFs (test/cache files)
+scripts/bras/*.pdf
+scripts/bra.pdf
+
+# Claude Code
+.claude/
 
 ### macOS template
 # General

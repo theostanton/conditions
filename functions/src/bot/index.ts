@@ -2,7 +2,7 @@ import {Bot} from "grammy";
 import {CommandGet} from './commands/get';
 import {CommandSubscribe} from './commands/subscribe';
 import {CommandUnsubscribe} from './commands/unsubscribe';
-import {TELEGRAM_BOT_TOKEN} from "@config/index";
+import {TELEGRAM_BOT_TOKEN} from "@config/envs";
 
 export async function createBot(): Promise<Bot> {
     const bot = new Bot(TELEGRAM_BOT_TOKEN);

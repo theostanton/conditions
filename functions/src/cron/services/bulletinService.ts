@@ -1,11 +1,15 @@
-import axios from "axios";
-import { createWriteStream } from "fs";
-import { Readable } from "stream";
-import { Storage } from '@google-cloud/storage';
-import { meteoFranceHeaders, PROJECT_ID } from "@config/index";
+import axios, {AxiosHeaders} from "axios";
+import {createWriteStream} from "fs";
+import {Readable} from "stream";
+import {Storage} from '@google-cloud/storage';
+import {PROJECT_ID, METEOFRANCE_TOKEN} from "@config/envs";
 import {Bulletin, BulletinInfos} from "@app-types";
 import {Database} from "@database/queries";
 import {formatDate} from "@utils/formatters";
+
+export const meteoFranceHeaders: AxiosHeaders = new AxiosHeaders();
+meteoFranceHeaders.set('Content-Type', 'application/xml');
+meteoFranceHeaders.set('apikey', METEOFRANCE_TOKEN);
 
 export async function checkForNewBulletins(): Promise<BulletinInfos[]> {
     const massifsWithSubscribers = await Database.getMassifsWithSubscribers();
@@ -22,11 +26,19 @@ export async function checkForNewBulletins(): Promise<BulletinInfos[]> {
         const storedBulletin = latestStoredBulletins.find(b => b.massif == massif);
         const response = await axios.get(
             `https://public-api.meteofrance.fr/public/DPBRA/massif/BRA?id-massif=${massif}&format=xml`,
-            { headers: meteoFranceHeaders }
+            {headers: meteoFranceHeaders}
         );
 
-        const bulletinValidFrom = new Date(response.data.match(/DATEBULLETIN="(.[0-9-T:]*)"/)[1]);
-        const bulletinValidUntil = new Date(response.data.match(/DATEVALIDITE="(.[0-9-T:]*)"/)[1]);
+        const matchFrom = response.data.match(/DATEBULLETIN="(.[0-9-T:]*)"/);
+        const matchUntil = response.data.match(/DATEVALIDITE="(.[0-9-T:]*)"/);
+
+        if (matchFrom == null || matchUntil == null) {
+            console.log(`No matches response.data=${response.data}`);
+            break
+        }
+
+        const bulletinValidFrom = new Date(matchFrom[1]);
+        const bulletinValidUntil = new Date(matchUntil[1]);
 
         if (storedBulletin == undefined) {
             console.log(`No existing bulletin for massif=${massif}`);
@@ -53,7 +65,7 @@ export async function checkForNewBulletins(): Promise<BulletinInfos[]> {
 async function fetchBulletin(massif: number, filename: string): Promise<string | null> {
     const resp = await fetch(
         `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${massif}&format=pdf`,
-        { headers: meteoFranceHeaders }
+        {headers: meteoFranceHeaders}
     );
 
     if (resp.ok && resp.body) {
@@ -79,7 +91,7 @@ async function storeBulletin(filename: string): Promise<string> {
     });
     const response = await storage
         .bucket(`${PROJECT_ID}-bras`)
-        .upload(filename, { public: true });
+        .upload(filename, {public: true});
     return response[0].publicUrl();
 }
 
@@ -113,7 +125,7 @@ export async function fetchAndStoreBulletins(newBulletinsToFetch: BulletinInfos[
         await Database.insertBulletin(bulletin.massif, filename, publicUrl, bulletin.valid_from, bulletin.valid_to);
         console.log();
 
-        bulletins.push({ ...bulletin, filename, public_url: publicUrl });
+        bulletins.push({...bulletin, filename, public_url: publicUrl});
     }
 
     return bulletins;

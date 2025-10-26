@@ -11,7 +11,3 @@ export const PGHOST = process.env.PGHOST as string;
 export const PGDATABASE = process.env.PGDATABASE as string;
 export const PGUSER = process.env.PGUSER as string;
 export const PGPASSWORD = process.env.PGPASSWORD as string;
-
-export const meteoFranceHeaders: AxiosHeaders = new AxiosHeaders();
-meteoFranceHeaders.set('Content-Type', 'application/xml');
-meteoFranceHeaders.set('apikey', METEOFRANCE_TOKEN);

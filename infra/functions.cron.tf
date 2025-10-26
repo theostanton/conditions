@@ -1,11 +1,16 @@
+resource "google_project_service" "cloud_scheduler_api" {
+  service = "cloudscheduler.googleapis.com"
+  project = local.project_id
+}
+
 resource "google_cloudfunctions2_function" "cron" {
 
-  depends_on = [google_project_service.cloud_run_api]
+  depends_on = [google_project_service.cloud_run_api, google_project_service.cloud_scheduler_api]
   location   = local.region
   project    = local.project_id
 
   build_config {
-    entry_point = "cronJob"
+    entry_point = "cronEndpoint"
     runtime     = "nodejs20"
     source {
       storage_source {
@@ -16,8 +21,8 @@ resource "google_cloudfunctions2_function" "cron" {
   }
 
   service_config {
-    available_memory = "512Mi"
-    timeout_seconds  = 540
+    available_memory      = "512Mi"
+    timeout_seconds       = 540
     environment_variables = {
       TELEGRAM_BOT_TOKEN = var.telegram_bot_token
       PGHOST             = "/cloudsql/${google_sql_database_instance.instance.connection_name}"
@@ -29,8 +34,19 @@ resource "google_cloudfunctions2_function" "cron" {
     }
   }
 
-  name = "cronJob"
-  # service_account_email = google_service_account.function-sa.email
+  name = "cron"
+}
+
+resource "null_resource" "cron_cloud_sql" {
+  depends_on = [google_cloudfunctions2_function.cron]
+
+  triggers = {
+    function_id = google_cloudfunctions2_function.cron.id
+  }
+
+  provisioner "local-exec" {
+    command = "gcloud run services update ${google_cloudfunctions2_function.cron.name} --add-cloudsql-instances ${google_sql_database_instance.instance.connection_name} --region ${local.region} --project ${local.project_id}"
+  }
 }
 
 # IAM binding to allow Cloud Scheduler to invoke the function
@@ -52,6 +68,7 @@ resource "google_service_account" "scheduler_sa" {
 
 # Cloud Scheduler job to trigger the cron function
 resource "google_cloud_scheduler_job" "cron_trigger" {
+  depends_on  = [google_project_service.cloud_scheduler_api]
   name        = "cron-job-trigger"
   description = "Triggers the cron Cloud Function on a schedule"
   schedule    = "0 * * * *" # Every hour at the top of the hour

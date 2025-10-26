@@ -12,7 +12,7 @@ tasks:
     cmds:
       - rm -rf ./dist/*
       - yarn build
-      - cp package.prod.json dist/package.json
+      - cp package.prod.json ../dist/functions/package.json
 
   apply:
     dir: infra/

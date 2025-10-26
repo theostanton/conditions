@@ -5,7 +5,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "noImplicitReturns": true,
-    "outDir": "./dist",
+    "outDir": "../dist/functions",
     "strictNullChecks": true,
     "incremental": true,
     "removeComments": true,

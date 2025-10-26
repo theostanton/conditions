@@ -30,8 +30,7 @@ resource "google_cloudfunctions2_function" "webhook" {
   }
 
 
-  name = "botWebhook"
-  # service_account_email = google_service_account.function-sa.email
+  name = "bot"
 }
 
 
@@ -43,20 +42,14 @@ resource "google_cloud_run_v2_service_iam_binding" "webhook" {
   project  = local.project_id
 }
 
-data "http" "webhook_set" {
-  lifecycle {
-    replace_triggered_by = [google_cloudfunctions2_function.webhook.service_config[0].uri]
+resource "null_resource" "webhook_set" {
+  triggers = {
+    webhook_uri = google_cloudfunctions2_function.webhook.service_config[0].uri
   }
-  url    = "https://api.telegram.org/bot${var.telegram_bot_token}/setWebhook"
-  method = "POST"
-  request_headers = {
-    Content-type = "application/x-www-form-urlencoded"
-  }
-  request_body = "url=${google_cloudfunctions2_function.webhook.service_config[0].uri}"
-}
 
-output "webhook_set_result" {
-  value = data.http.webhook_set.response_body
+  provisioner "local-exec" {
+    command = "curl -X POST 'https://api.telegram.org/bot${var.telegram_bot_token}/setWebhook' -d 'url=${google_cloudfunctions2_function.webhook.service_config[0].uri}'"
+  }
 }
 
 output "webhook_url" {

@@ -15,3 +15,10 @@ apiKey: {{meteofrance_api_key}}
 GET https://public-api.meteofrance.fr/public/DPBRA/v1/liste-massifs
 accept: */*
 Authorization: Bearer {{meteofrance_api_key}}
+
+###
+# Trigger Cron Job
+# Note: Requires gcloud authentication token
+# Get token with: gcloud auth print-identity-token
+POST https://cron-dmytevhowa-ue.a.run.app
+Authorization: Bearer {{gcloud_identity_token}}

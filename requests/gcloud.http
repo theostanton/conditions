@@ -1,0 +1,75 @@
+### Google Cloud Platform - Cloud Functions
+### Project ID: conditions-450312
+### Region: us-east1
+### Note: Requires gcloud authentication token
+### Get token with: gcloud auth print-identity-token
+
+### Trigger Cron Endpoint (Cloud Run)
+### Checks for new bulletins and sends notifications
+POST https://cron-dmytevhowa-ue.a.run.app
+Authorization: Bearer {{gcloud_identity_token}}
+
+###
+### Trigger Cron Endpoint - Cloud Function
+POST https://us-east1-conditions-450312.cloudfunctions.net/cronEndpoint
+Authorization: Bearer {{gcloud_identity_token}}
+
+###
+### Bot Webhook Endpoint - Test with mock Telegram update
+POST https://us-east1-conditions-450312.cloudfunctions.net/botWebhook
+Content-Type: application/json
+
+{
+  "update_id": 123456789,
+  "message": {
+    "message_id": 1,
+    "from": {
+      "id": {{test_user_id}},
+      "is_bot": false,
+      "first_name": "Test",
+      "username": "testuser"
+    },
+    "chat": {
+      "id": {{test_chat_id}},
+      "type": "private",
+      "first_name": "Test",
+      "username": "testuser"
+    },
+    "date": 1234567890,
+    "text": "/get"
+  }
+}
+
+###
+### Test webhook with /subscribe command
+POST https://us-east1-conditions-450312.cloudfunctions.net/botWebhook
+Content-Type: application/json
+
+{
+  "update_id": 123456790,
+  "message": {
+    "message_id": 2,
+    "from": {
+      "id": {{test_user_id}},
+      "is_bot": false,
+      "first_name": "Test",
+      "username": "testuser"
+    },
+    "chat": {
+      "id": {{test_chat_id}},
+      "type": "private",
+      "first_name": "Test",
+      "username": "testuser"
+    },
+    "date": 1234567890,
+    "text": "/subscribe"
+  }
+}
+
+###
+### Google Cloud Storage - Get bulletin (public access)
+GET https://storage.googleapis.com/conditions-450312-bras/{{bulletin_filename}}
+
+###
+### Example: Get specific bulletin
+GET https://storage.googleapis.com/conditions-450312-bras/BRA.MONT-BLANC.20250126.pdf

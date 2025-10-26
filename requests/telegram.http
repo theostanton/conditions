@@ -1,0 +1,73 @@
+### Telegram Bot API
+### Base URL: https://api.telegram.org
+### Bot Token: 7824791357:AAEImxUHwf1DK2QYcUPXw7AHptIKij-gs_0
+### Documentation: https://core.telegram.org/bots/api
+
+### Set webhook
+POST https://api.telegram.org/bot{{telegram_bot_token}}/setWebhook
+Content-Type: application/x-www-form-urlencoded
+
+url=https://us-east1-conditions-450312.cloudfunctions.net/botWebhook
+
+###
+### Get webhook info
+GET https://api.telegram.org/bot{{telegram_bot_token}}/getWebhookInfo
+
+###
+### Delete webhook (switch to polling mode)
+POST https://api.telegram.org/bot{{telegram_bot_token}}/deleteWebhook
+
+###
+### Get bot info
+GET https://api.telegram.org/bot{{telegram_bot_token}}/getMe
+
+###
+### Set bot commands
+POST https://api.telegram.org/bot{{telegram_bot_token}}/setMyCommands
+Content-Type: application/json
+
+{
+  "commands": [
+    {
+      "command": "get",
+      "description": "Get latest bulletin for your subscribed massifs"
+    },
+    {
+      "command": "subscribe",
+      "description": "Subscribe to massif bulletins"
+    },
+    {
+      "command": "unsubscribe",
+      "description": "Unsubscribe from massif bulletins"
+    }
+  ]
+}
+
+###
+### Get bot commands
+GET https://api.telegram.org/bot{{telegram_bot_token}}/getMyCommands
+
+###
+### Send test message
+POST https://api.telegram.org/bot{{telegram_bot_token}}/sendMessage
+Content-Type: application/json
+
+{
+  "chat_id": "{{test_chat_id}}",
+  "text": "Test message from conditions bot"
+}
+
+###
+### Send document (bulletin)
+POST https://api.telegram.org/bot{{telegram_bot_token}}/sendDocument
+Content-Type: application/json
+
+{
+  "chat_id": "{{test_chat_id}}",
+  "document": "{{bulletin_url}}",
+  "caption": "Latest avalanche bulletin"
+}
+
+###
+### Get updates (polling mode - use when webhook is disabled)
+GET https://api.telegram.org/bot{{telegram_bot_token}}/getUpdates?offset=-1&limit=10

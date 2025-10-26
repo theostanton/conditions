@@ -1,0 +1,39 @@
+### Meteo France Public API
+### Base URL: https://public-api.meteofrance.fr
+### Authentication: API Key (JWT token)
+### Rate Limit: 50 requests per minute
+
+### List all massifs
+GET https://public-api.meteofrance.fr/public/DPBRA/v1/liste-massifs
+Content-Type: application/json
+apikey: {{meteofrance_api_key}}
+User-Agent: axios/1.6.0
+
+###
+### Get BRA (Bulletin d'estimation du Risque d'Avalanche) - XML Format
+### Example massif IDs: 1=Chablais, 2=Aravis, 3=Mont-Blanc
+GET https://public-api.meteofrance.fr/public/DPBRA/massif/BRA?id-massif=3&format=xml
+Content-Type: application/xml
+apikey: {{meteofrance_api_key}}
+User-Agent: axios/1.6.0
+
+###
+### Get BRA - PDF Format
+GET https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=3&format=pdf
+Content-Type: application/pdf
+apikey: {{meteofrance_api_key}}
+User-Agent: axios/1.6.0
+
+###
+### Get BRA for Aravis massif (id=2)
+GET https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=2&format=pdf
+Content-Type: application/pdf
+apikey: {{meteofrance_api_key}}
+User-Agent: axios/1.6.0
+
+###
+### Get BRA for Chablais massif (id=1)
+GET https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=1&format=pdf
+Content-Type: application/pdf
+apikey: {{meteofrance_api_key}}
+User-Agent: axios/1.6.0

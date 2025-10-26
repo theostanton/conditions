@@ -1,0 +1,75 @@
+### WhatsApp Business API (via Facebook Graph API)
+### Base URL: https://graph.facebook.com
+### Phone Number ID: 551988608001807
+### API Version: v22.0
+### Documentation: https://developers.facebook.com/docs/whatsapp
+
+### Send text message
+POST https://graph.facebook.com/v22.0/{{whatsapp_phone_number_id}}/messages
+Authorization: Bearer {{whatsapp_access_token}}
+Content-Type: application/json
+
+{
+  "messaging_product": "whatsapp",
+  "to": "{{recipient_phone_number}}",
+  "type": "text",
+  "text": {
+    "body": "Test message from conditions service"
+  }
+}
+
+###
+### Send document (bulletin PDF)
+POST https://graph.facebook.com/v22.0/{{whatsapp_phone_number_id}}/messages
+Authorization: Bearer {{whatsapp_access_token}}
+Content-Type: application/json
+
+{
+  "messaging_product": "whatsapp",
+  "to": "{{recipient_phone_number}}",
+  "type": "document",
+  "document": {
+    "link": "{{bulletin_url}}",
+    "caption": "Latest avalanche bulletin for Mont-Blanc",
+    "filename": "bulletin.pdf"
+  }
+}
+
+###
+### Send template message
+POST https://graph.facebook.com/v22.0/{{whatsapp_phone_number_id}}/messages
+Authorization: Bearer {{whatsapp_access_token}}
+Content-Type: application/json
+
+{
+  "messaging_product": "whatsapp",
+  "to": "{{recipient_phone_number}}",
+  "type": "template",
+  "template": {
+    "name": "hello_world",
+    "language": {
+      "code": "en_US"
+    }
+  }
+}
+
+###
+### Get phone number info
+GET https://graph.facebook.com/v22.0/{{whatsapp_phone_number_id}}
+Authorization: Bearer {{whatsapp_access_token}}
+
+###
+### Get business account info
+GET https://graph.facebook.com/v22.0/{{whatsapp_business_account_id}}
+Authorization: Bearer {{whatsapp_access_token}}
+
+###
+### Upload media (for documents/images)
+POST https://graph.facebook.com/v22.0/{{whatsapp_phone_number_id}}/media
+Authorization: Bearer {{whatsapp_access_token}}
+Content-Type: multipart/form-data
+
+{
+  "messaging_product": "whatsapp",
+  "file": "{{file_path}}"
+}

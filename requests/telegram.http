@@ -1,6 +1,6 @@
 ### Telegram Bot API
 ### Base URL: https://api.telegram.org
-### Bot Token: 7824791357:AAEImxUHwf1DK2QYcUPXw7AHptIKij-gs_0
+### Bot Token: Use {{telegram_bot_token}} variable from http-client.private.env.json
 ### Documentation: https://core.telegram.org/bots/api
 
 ### Set webhook

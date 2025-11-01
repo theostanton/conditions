@@ -37,3 +37,11 @@ GET https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=1&for
 Content-Type: application/pdf
 apikey: {{meteofrance_api_key}}
 User-Agent: axios/1.6.0
+
+###
+# curl -X 'GET' 'https://public-api.meteofrance.fr/public/DPBRA/v1/massif/image/montagne-enneigement?id-massif=66' -H 'accept: */*' -H 'Authorization: Bearer <your_oauth2_token_here>"
+GET https://public-api.meteofrance.fr/public/DPBRA/v1/massif/image/apercu-meteo?id-massif=2
+apikey: {{meteofrance_api_key}}
+User-Agent: axios/1.6.0
+
+###

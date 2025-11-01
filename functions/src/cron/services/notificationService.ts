@@ -1,4 +1,4 @@
-import { bot } from "@config/telegram";
+import {bot} from "@config/telegram";
 import {Bulletin, BulletinDestination} from "@app-types";
 import {Database} from "@database/queries";
 
@@ -21,10 +21,13 @@ export async function generateSubscriptionDestinations(bulletins: Bulletin[]): P
     return destinations;
 }
 
-export async function send(destinations: BulletinDestination[]) {
+export async function send(destinations: BulletinDestination[]): Promise<number> {
+    let total = 0
     for (const destination of destinations) {
         for (const recipient of destination.recipients) {
+            total++
             await bot.api.sendDocument(recipient, destination.public_url);
         }
     }
+    return total
 }

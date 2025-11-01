@@ -2,6 +2,8 @@ import {Bot, Context} from "grammy";
 import {Menu} from "@grammyjs/menu";
 import {Subscriptions} from "@database/models/Subscriptions";
 import {Massifs} from "@database/models/Massifs";
+import {Bulletins} from "@database/models/Bulletins";
+import {CommandGet} from "@bot/commands/get";
 
 export namespace CommandSubscribe {
 
@@ -18,6 +20,7 @@ export namespace CommandSubscribe {
                 } else {
                     await Subscriptions.subscribe(recipientId, massif);
                     await context.reply(`You are now subscribed to ${massif.name}`);
+                    await CommandGet.send(context,massif)
                 }
             }).row();
         });

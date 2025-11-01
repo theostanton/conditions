@@ -15,6 +15,14 @@ export namespace Database {
         return [...result].map(s => s.massif);
     }
 
+    export async function getTotalSubscribers(): Promise<number> {
+        const client = getClient();
+        const result = await client.query<{ count: number }>(
+            "select count(distinct(recipient)) as count from subscriptions_bras"
+        );
+        return [...result][0].count
+    }
+
     export async function getLatestStoredBulletins(): Promise<BulletinInfos[]> {
         const client = getClient();
         const result = await client.query<BulletinInfos>(

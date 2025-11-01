@@ -6,12 +6,22 @@ import {PROJECT_ID, METEOFRANCE_TOKEN} from "@config/envs";
 import {Bulletin, BulletinInfos} from "@app-types";
 import {Database} from "@database/queries";
 import {formatDate} from "@utils/formatters";
+import {Either} from "../../types/Either";
 
 export const meteoFranceHeaders: AxiosHeaders = new AxiosHeaders();
 meteoFranceHeaders.set('Content-Type', 'application/xml');
 meteoFranceHeaders.set('apikey', METEOFRANCE_TOKEN);
 
-export async function checkForNewBulletins(): Promise<BulletinInfos[]> {
+
+export type NewBulletinsResult = {
+    bulletinInfosToUpdate: BulletinInfos[]
+    massifsNew: number[]
+    failedMassifs: number[]
+    massifsWithUpdate: number[]
+    massifsWithNoUpdate: number[]
+}
+
+export async function checkForNewBulletins(): Promise<NewBulletinsResult> {
     const massifsWithSubscribers = await Database.getMassifsWithSubscribers();
     console.log(`massifsWithSubscribers=${JSON.stringify(massifsWithSubscribers)}`);
 
@@ -19,6 +29,10 @@ export async function checkForNewBulletins(): Promise<BulletinInfos[]> {
     console.log(`latestStoredBulletins=${JSON.stringify(latestStoredBulletins)}`);
 
     const bulletinInfosToUpdate: BulletinInfos[] = [];
+    const massifsNew: number[] = []
+    const massifsWithUpdate: number[] = []
+    const massifsWithNoUpdate: number[] = []
+    const failedMassifs: number[] = []
 
     for (const massif of massifsWithSubscribers) {
         console.log(`Checking for new bulletin for massif=${massif}`);
@@ -34,32 +48,36 @@ export async function checkForNewBulletins(): Promise<BulletinInfos[]> {
 
         if (matchFrom == null || matchUntil == null) {
             console.log(`No matches response.data=${response.data}`);
-            break
-        }
-
-        const bulletinValidFrom = new Date(matchFrom[1]);
-        const bulletinValidUntil = new Date(matchUntil[1]);
-
-        if (storedBulletin == undefined) {
-            console.log(`No existing bulletin for massif=${massif}`);
-            bulletinInfosToUpdate.push({
-                massif: massif,
-                valid_from: bulletinValidFrom,
-                valid_to: bulletinValidUntil
-            });
-        } else if (bulletinValidFrom > storedBulletin.valid_from) {
-            console.log(`New bulletin for massif=${massif} ${bulletinValidFrom} > ${storedBulletin.valid_from}`);
-            bulletinInfosToUpdate.push({
-                massif: massif,
-                valid_from: bulletinValidFrom,
-                valid_to: bulletinValidUntil
-            });
+            failedMassifs.push(massif)
         } else {
-            console.log(`No new bulletin for massif=${massif} ${bulletinValidFrom} <= ${storedBulletin.valid_from}`);
+
+            const bulletinValidFrom = new Date(matchFrom[1]);
+            const bulletinValidUntil = new Date(matchUntil[1]);
+
+            if (storedBulletin == undefined) {
+                console.log(`No existing bulletin for massif=${massif}`);
+                bulletinInfosToUpdate.push({
+                    massif: massif,
+                    valid_from: bulletinValidFrom,
+                    valid_to: bulletinValidUntil
+                });
+                massifsNew.push(massif)
+            } else if (bulletinValidFrom > storedBulletin.valid_from) {
+                console.log(`New bulletin for massif=${massif} ${bulletinValidFrom} > ${storedBulletin.valid_from}`);
+                bulletinInfosToUpdate.push({
+                    massif: massif,
+                    valid_from: bulletinValidFrom,
+                    valid_to: bulletinValidUntil
+                });
+                massifsWithUpdate.push(massif)
+            } else {
+                console.log(`No new bulletin for massif=${massif} ${bulletinValidFrom} <= ${storedBulletin.valid_from}`);
+                massifsWithNoUpdate.push(massif)
+            }
         }
     }
 
-    return bulletinInfosToUpdate;
+    return {bulletinInfosToUpdate, massifsNew, failedMassifs, massifsWithUpdate, massifsWithNoUpdate}
 }
 
 async function fetchBulletin(massif: number, filename: string): Promise<string | null> {

@@ -71,7 +71,7 @@ resource "google_cloud_scheduler_job" "cron_trigger" {
   depends_on  = [google_project_service.cloud_scheduler_api]
   name        = "cron-job-trigger"
   description = "Triggers the cron Cloud Function on a schedule"
-  schedule    = "0 * * * *" # Every hour at the top of the hour
+  schedule    = "0 7,17 * * *" # Twice daily at 7:00 UTC (8/9am CET) and 17:00 UTC (6/7pm CET)
   time_zone   = "UTC"
   region      = local.region
   project     = local.project_id

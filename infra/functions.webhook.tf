@@ -16,7 +16,7 @@ resource "google_cloudfunctions2_function" "webhook" {
   }
 
   service_config {
-    available_memory   = "256Mi"
+    available_memory   = "256Mi" # Monitor actual usage - may be able to reduce to 128Mi
     timeout_seconds    = 60
     max_instance_count = 10 # Limit concurrent instances to prevent abuse/unexpected costs
     environment_variables = {

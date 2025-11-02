@@ -1,5 +1,5 @@
-import {checkForNewBulletins, fetchAndStoreBulletins} from "./services/bulletinService";
-import {generateSubscriptionDestinations, send} from "./services/notificationService";
+import {BulletinService} from "./services/bulletinService";
+import {NotificationService} from "./services/notificationService";
 import {setupDatabase} from "@config/database";
 import {Database} from "@database/queries";
 import {CronExecutions, type CronExecution} from "@database/models/CronExecutions";
@@ -25,7 +25,7 @@ export default async function () {
 
         // Check Bulletin difference
         stage = 'checkForNewBulletins'
-        const newBulletinsResult = await checkForNewBulletins();
+        const newBulletinsResult = await BulletinService.checkForNewBulletins();
         const newBulletinsToFetch = newBulletinsResult.bulletinInfosToUpdate
         execution.updated_bulletins_count = newBulletinsToFetch.length;
         if (newBulletinsResult.failedMassifs.length > 0) {
@@ -40,17 +40,17 @@ export default async function () {
         if (execution.updated_bulletins_count > 0) {
             // Fetch + Store new Bulletins
             stage = 'fetchAndStoreBulletins'
-            const newBulletins = await fetchAndStoreBulletins(newBulletinsToFetch);
+            const newBulletins = await BulletinService.fetchAndStoreBulletins(newBulletinsToFetch);
             console.log(`newBulletins=${JSON.stringify(newBulletins)}`);
 
             // Check subscription difference
             stage = 'generateSubscriptionDestinations'
-            const destinations = await generateSubscriptionDestinations(newBulletins);
+            const destinations = await NotificationService.generateSubscriptionDestinations(newBulletins);
             console.log(`destinations=${JSON.stringify(destinations)}`);
 
             // Send to subscribers
             stage = 'send'
-            execution.bulletins_delivered_count = await send(destinations);
+            execution.bulletins_delivered_count = await NotificationService.send(destinations);
 
             execution.summary = `Deliveries made. ${newBulletinsSummary}`;
         } else {

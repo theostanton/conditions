@@ -13,7 +13,7 @@ export namespace CommandGet {
 
             for (const massif of massifs) {
                 range.text(massif.name, async (context) => {
-                    await ActionBulletins.send(context, massif);
+                    await ActionBulletins.send(context, massif, true);
                 }).row();
             }
         });

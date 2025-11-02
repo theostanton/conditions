@@ -22,7 +22,7 @@ export namespace ActionSubscriptions {
                 await context.reply(`You are now subscribed to ${massif.name}`);
 
                 if (sendBulletin) {
-                    await ActionBulletins.send(context, massif);
+                    await ActionBulletins.send(context, massif, false);
                 }
             }
         } catch (error) {

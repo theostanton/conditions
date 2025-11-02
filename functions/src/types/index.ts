@@ -19,4 +19,6 @@ export type BulletinDestination = {
     massif: number,
     filename: string,
     public_url: string,
+    valid_from: Date,
+    valid_to: Date,
 }

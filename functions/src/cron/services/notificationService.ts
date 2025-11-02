@@ -1,20 +1,41 @@
 import {bot} from "@config/telegram";
 import {Bulletin, BulletinDestination} from "@app-types";
 import {Database} from "@database/queries";
+import {Deliveries} from "@database/models/Deliveries";
 
 export async function generateSubscriptionDestinations(bulletins: Bulletin[]): Promise<BulletinDestination[]> {
-    const rows = await Database.getSubscriptionsByMassif();
+    const subscriptions = await Database.getSubscriptionsByMassif();
     const destinations: BulletinDestination[] = [];
 
-    for (const row of rows) {
-        const bulletin = bulletins.find(value => value.massif == row.massif);
+    for (const subscription of subscriptions) {
+        const bulletin = bulletins.find(bulletin => bulletin.massif == subscription.massif);
         if (bulletin != undefined) {
-            destinations.push({
-                recipients: row.recipients.split(","),
-                massif: row.massif,
-                filename: bulletin.filename,
-                public_url: bulletin.public_url
-            });
+
+            // Filter recipients who haven't received this bulletin yet
+            const subscribers = subscription.recipients.split(",");
+            const filteredSubscribers: string[] = [];
+
+            for (const subscriber of subscribers) {
+                const alreadyDelivered = await Deliveries.hasBeenDelivered(
+                    subscriber,
+                    bulletin
+                );
+                if (!alreadyDelivered) {
+                    filteredSubscribers.push(subscriber);
+                }
+            }
+
+            // Only add destination if there are recipients who haven't received it
+            if (filteredSubscribers.length > 0) {
+                destinations.push({
+                    recipients: filteredSubscribers,
+                    massif: subscription.massif,
+                    filename: bulletin.filename,
+                    public_url: bulletin.public_url,
+                    valid_from: bulletin.valid_from,
+                    valid_to: bulletin.valid_to
+                });
+            }
         }
     }
 
@@ -37,17 +58,20 @@ function delay(ms: number): Promise<void> {
 
 export async function send(destinations: BulletinDestination[]): Promise<number> {
     // Flatten all messages to send
-    const messages = destinations.flatMap(destination =>
-        destination.recipients.map(recipient => ({
+    const messages = destinations.flatMap(destination => {
+        // Use valid_from timestamp (milliseconds since epoch)
+        return destination.recipients.map(recipient => ({
             recipient,
-            publicUrl: destination.public_url
-        }))
-    );
+            publicUrl: destination.public_url,
+            massif: destination.massif,
+            validFrom: destination.valid_from
+        }));
+    });
 
     // Send in batches to respect Telegram rate limits
     // Telegram allows ~30 messages per second, we'll be conservative with 20
     const BATCH_SIZE = 20;
-    const BATCH_DELAY_MS = 1000; // 1 second between batches
+    const BATCH_DELAY_MS = 1_000; // 1 second between batches
 
     const batches = chunkArray(messages, BATCH_SIZE);
     let totalSent = 0;
@@ -62,15 +86,27 @@ export async function send(destinations: BulletinDestination[]): Promise<number>
             batch.map(msg => bot.api.sendDocument(msg.recipient, msg.publicUrl))
         );
 
-        // Count successes and failures
-        results.forEach((result, idx) => {
+        // Process results and track deliveries
+        for (let idx = 0; idx < results.length; idx++) {
+            const result = results[idx];
+            const msg = batch[idx];
+
             if (result.status === 'fulfilled') {
                 totalSent++;
+                // Record successful delivery
+                try {
+                    await Deliveries.recordDelivery(msg.recipient, {
+                        massif: msg.massif,
+                        valid_from: msg.validFrom
+                    });
+                } catch (error) {
+                    console.error(`Failed to record delivery for ${msg.recipient}:`, error);
+                }
             } else {
                 totalFailed++;
-                console.error(`Failed to send to ${batch[idx].recipient}:`, result.reason);
+                console.error(`Failed to send to ${msg.recipient}:`, result.reason);
             }
-        });
+        }
 
         // Delay before next batch (except for the last batch)
         if (i < batches.length - 1) {

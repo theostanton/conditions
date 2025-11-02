@@ -2,7 +2,7 @@ resource "google_sql_database_instance" "instance" {
   name             = "instance"
   region           = local.region
   database_version = "POSTGRES_14"
-  root_password    = "password"
+  root_password    = var.db_password
   settings {
     availability_type = "ZONAL"
     ip_configuration {
@@ -19,23 +19,14 @@ resource "google_sql_database_instance" "instance" {
 }
 
 resource "google_sql_database" "database" {
-  name     = "database"
+  name     = var.db_database
   instance = google_sql_database_instance.instance.name
 }
 
 resource "google_sql_user" "user" {
-  name     = "user"
+  name     = var.db_user
   instance = google_sql_database_instance.instance.name
-  password = "password"
-}
-
-
-data "google_sql_tiers" "tiers" {
-  project = local.project_id
-}
-
-locals {
-  all_available_tiers = [for v in data.google_sql_tiers.tiers.tiers : v.tier]
+  password = var.db_password
 }
 
 output "database" {

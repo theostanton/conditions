@@ -1,0 +1,10 @@
+# Copy this file to terraform.tfvars and fill in your actual values
+# DO NOT commit terraform.tfvars to version control
+
+telegram_bot_token = "your-telegram-bot-token"
+meteofrance_token  = "your-meteofrance-api-token"
+
+# Database connection (for reference, actual connection uses Cloud SQL Unix socket)
+db_database = "database"
+db_user     = "user"
+db_password = "strong-random-password-here" # Should match db_user_password

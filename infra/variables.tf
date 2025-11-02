@@ -4,25 +4,20 @@ variable "telegram_bot_token" {
   sensitive   = true
 }
 
-variable "pg_host" {
-  description = "PostgreSQL database host"
-  type        = string
-}
-
-variable "pg_database" {
-  description = "PostgreSQL database name"
+variable "db_database" {
+  description = "Database name"
   type        = string
   default     = "database"
 }
 
-variable "pg_user" {
-  description = "PostgreSQL database user"
+variable "db_user" {
+  description = "Database user"
   type        = string
   default     = "postgres"
 }
 
-variable "pg_password" {
-  description = "PostgreSQL database password"
+variable "db_password" {
+  description = "Database password"
   type        = string
   sensitive   = true
 }

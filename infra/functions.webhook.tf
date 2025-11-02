@@ -21,9 +21,9 @@ resource "google_cloudfunctions2_function" "webhook" {
     environment_variables = {
       TELEGRAM_BOT_TOKEN = var.telegram_bot_token
       PGHOST             = "/cloudsql/${google_sql_database_instance.instance.connection_name}"
-      PGDATABASE         = var.pg_database
-      PGUSER             = var.pg_user
-      PGPASSWORD         = var.pg_password
+      PGDATABASE         = var.db_database
+      PGUSER             = var.db_user
+      PGPASSWORD         = var.db_password
       METEOFRANCE_TOKEN  = var.meteofrance_token
       GOOGLE_PROJECT_ID  = local.project_id
     }

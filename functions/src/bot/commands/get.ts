@@ -1,29 +1,9 @@
 import {Bot, Context} from "grammy";
 import {Menu} from "@grammyjs/menu";
 import {MassifCache} from "@cache/MassifCache";
-import {Bulletins} from "@database/models/Bulletins";
-import {Massif} from "@app-types";
-
+import {ActionBulletins} from "@bot/actions/bulletins";
 
 export namespace CommandGet {
-
-    export async function send(context: Context, massif: Massif) {
-        try {
-            const bulletin = await Bulletins.getLatest(massif.code);
-
-            if (bulletin === undefined) {
-                await context.reply(`No bulletin for ${massif.name}`);
-            } else if (bulletin.valid_to < new Date()) {
-                await context.replyWithDocument(bulletin.public_url);
-                await context.reply(`Latest bulletin for ${massif.name} is outdated`);
-            } else {
-                await context.replyWithDocument(bulletin.public_url);
-            }
-        } catch (error) {
-            console.error('Error sending bulletin:', error);
-            await context.reply(`Failed to retrieve bulletin for ${massif.name}. Please try again.`);
-        }
-    }
 
     function buildMassifMenu(mountain: string): Menu {
         const massifMenu = new Menu<Context>(`get-massifs-${mountain}`);
@@ -33,7 +13,7 @@ export namespace CommandGet {
 
             for (const massif of massifs) {
                 range.text(massif.name, async (context) => {
-                    await send(context, massif);
+                    await ActionBulletins.send(context, massif);
                 }).row();
             }
         });

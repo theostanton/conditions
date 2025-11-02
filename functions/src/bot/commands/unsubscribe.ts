@@ -1,7 +1,7 @@
 import {Bot, Context} from "grammy";
 import {Menu} from "@grammyjs/menu";
 import {Massifs} from "@database/models/Massifs";
-import {Subscriptions} from "@database/models/Subscriptions";
+import {ActionSubscriptions} from "@bot/actions/subscriptions";
 
 export namespace CommandUnsubscribe {
 
@@ -11,43 +11,18 @@ export namespace CommandUnsubscribe {
         menu.dynamic(async (ctx, range) => {
             if (!ctx.from?.id) return;
 
-            // Fetch user's subscribed massifs
             const userMassifs = await Massifs.getAllForRecipient(ctx.from.id);
 
             if (userMassifs.length === 0) return;
 
-            // Show all massifs
             for (const massif of userMassifs) {
                 range.text(massif.name, async (context) => {
-                    try {
-                        if (!context.from?.id) {
-                            await context.reply("Unable to identify user");
-                            return;
-                        }
-
-                        await Subscriptions.unsubscribe(context.from.id, massif);
-                        await context.reply(`You are now unsubscribed from ${massif.name}`);
-                    } catch (error) {
-                        console.error('Error unsubscribing:', error);
-                        await context.reply(`Failed to unsubscribe from ${massif.name}. Please try again.`);
-                    }
+                    await ActionSubscriptions.unsubscribe(context, massif);
                 }).row();
             }
 
-            // Add "Unsubscribe from all" option
             range.text("🗑️ Unsubscribe from all", async (context) => {
-                try {
-                    if (!context.from?.id) {
-                        await context.reply("Unable to identify user");
-                        return;
-                    }
-
-                    await Subscriptions.unsubscribeAll(context.from.id);
-                    await context.reply("Unsubscribed from all BRAs");
-                } catch (error) {
-                    console.error('Error unsubscribing from all:', error);
-                    await context.reply("Failed to unsubscribe. Please try again.");
-                }
+                await ActionSubscriptions.unsubscribeAll(context);
             }).row();
         });
 

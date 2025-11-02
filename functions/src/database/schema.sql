@@ -52,3 +52,16 @@ CREATE INDEX IF NOT EXISTS idx_cron_executions_executed_at ON cron_executions(ex
 
 -- Create index on status for filtering by execution status
 CREATE INDEX IF NOT EXISTS idx_cron_executions_status ON cron_executions(status);
+
+-- Performance indexes for bot commands
+-- For Massifs.getByMountain() query
+CREATE INDEX IF NOT EXISTS idx_massifs_mountain ON massifs(mountain);
+
+-- For Subscriptions.isSubscribed() query
+CREATE INDEX IF NOT EXISTS idx_subscriptions_recipient_massif ON subscriptions_bras(recipient, massif);
+
+-- For Massifs.getAllForRecipient() query
+CREATE INDEX IF NOT EXISTS idx_subscriptions_recipient ON subscriptions_bras(recipient);
+
+-- For Bulletins.getLatest() query - covering index for massif and valid_to
+CREATE INDEX IF NOT EXISTS idx_bras_massif_valid_to ON bras(massif, valid_to DESC);

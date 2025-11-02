@@ -17,6 +17,7 @@
       "@database/*": ["database/*"],
       "@bot/*": ["bot/*"],
       "@cron/*": ["cron/*"],
+      "@cache/*": ["cache/*"],
       "@app-types": ["types/index"],
       "@utils/*": ["utils/*"]
     }

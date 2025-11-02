@@ -1,58 +1,127 @@
-import {Bot, Context, Keyboard} from "grammy";
+import {Bot, Context} from "grammy";
+import {Menu} from "@grammyjs/menu";
 import {Massifs} from "@database/models/Massifs";
+import {MassifCache} from "@cache/MassifCache";
 import {Massif} from "@app-types";
 import {Subscriptions} from "@database/models/Subscriptions";
 
 export namespace CommandUnsubscribe {
 
+    function buildMassifMenu(mountain: string, userMassifs: Massif[]): Menu {
+        const massifMenu = new Menu<Context>(`unsubscribe-massifs-${mountain}`);
 
-    export async function buildKeyboard(context: Context, massifs: Massif[]): Promise<Keyboard | undefined> {
+        const massifsInMountain = userMassifs.filter(m => m.mountain === mountain);
 
-        if (massifs.length === 0) {
-            await context.reply("You are not subscribed to any BRAs");
-            return;
+        for (const massif of massifsInMountain) {
+            massifMenu.text(massif.name, async (context) => {
+                try {
+                    if (!context.from?.id) {
+                        await context.reply("Unable to identify user");
+                        return;
+                    }
+
+                    await Subscriptions.unsubscribe(context.from.id, massif);
+                    await context.reply(`You are now unsubscribed from ${massif.name}`);
+                } catch (error) {
+                    console.error('Error unsubscribing:', error);
+                    await context.reply(`Failed to unsubscribe from ${massif.name}. Please try again.`);
+                }
+            }).row();
         }
 
-        const keyboard = new Keyboard();
+        massifMenu.back("← Back to mountains");
 
-        keyboard.text(`/unsubscribe all`).row();
-        massifs.forEach(massif => {
-            keyboard.text(`/unsubscribe ${massif.name}`).row();
-        });
+        return massifMenu;
+    }
 
-        keyboard.resized(false);
-        return keyboard;
+    async function buildMountainMenu(userId: number): Promise<Menu> {
+        const mountainMenu = new Menu<Context>("unsubscribe-mountains");
+
+        // Fetch user's subscribed massifs
+        const userMassifs = await Massifs.getAllForRecipient(userId);
+
+        if (userMassifs.length === 0) {
+            // Empty menu - will be handled by command
+            return mountainMenu;
+        }
+
+        // Group by mountain
+        const mountainsWithSubs = [...new Set(userMassifs.map(m => m.mountain).filter(Boolean))].sort();
+
+        for (const mountain of mountainsWithSubs) {
+            const massifMenu = buildMassifMenu(mountain as string, userMassifs);
+            mountainMenu.submenu(mountain as string, `unsubscribe-massifs-${mountain}`).row();
+            mountainMenu.register(massifMenu);
+        }
+
+        // Add "Unsubscribe from all" option
+        mountainMenu.text("🗑️ Unsubscribe from all", async (ctx) => {
+            try {
+                if (!ctx.from?.id) {
+                    await ctx.reply("Unable to identify user");
+                    return;
+                }
+
+                await Subscriptions.unsubscribeAll(ctx.from.id);
+                await ctx.reply("Unsubscribed from all BRAs");
+            } catch (error) {
+                console.error('Error unsubscribing from all:', error);
+                await ctx.reply("Failed to unsubscribe. Please try again.");
+            }
+        }).row();
+
+        return mountainMenu;
     }
 
     function commandUnsubscribe(): (ctx: Context) => Promise<void> {
-
         return async (ctx: Context) => {
-            const massifs = await Massifs.getAllForRecipient(ctx.from?.id as number);
-            if (ctx.match === "") {
-                const keyboard = await buildKeyboard(ctx, massifs);
-                await ctx.reply("Unsubscribe from BRAs", {reply_markup: keyboard});
-            } else if (ctx.match === "all") {
-                await Subscriptions.unsubscribeAll(ctx.from?.id as number);
-                await ctx.reply("Unsubscribed from all BRAs", {reply_markup: {remove_keyboard: true}});
-            } else {
-                const massif = massifs.find(m => ctx.match === m.name);
-                if (massif) {
-                    await Subscriptions.unsubscribe(ctx.from?.id as number, massif);
-                    const keyboard = await buildKeyboard(ctx, massifs);
-                    if (keyboard) {
-                        await ctx.reply(`You are now unsubscribed from ${ctx.match}`, {reply_markup: keyboard});
-                    } else {
-                        await ctx.reply("Unsubscribed from all BRAs", {reply_markup: {remove_keyboard: true}});
-                    }
-                } else {
-                    await ctx.reply(`Couldn't find the massif to unsubscribe for "${ctx.match}"`);
+            try {
+                if (!ctx.from?.id) {
+                    await ctx.reply("Unable to identify user");
+                    return;
                 }
+
+                const userMassifs = await Massifs.getAllForRecipient(ctx.from.id);
+
+                if (userMassifs.length === 0) {
+                    await ctx.reply("You are not subscribed to any BRAs");
+                    return;
+                }
+
+                const menu = await buildMountainMenu(ctx.from.id);
+                await ctx.reply("Choose a mountain range to unsubscribe from", {reply_markup: menu});
+            } catch (error) {
+                console.error('Error in unsubscribe command:', error);
+                await ctx.reply("An error occurred. Please try again.");
             }
         };
     }
 
     export async function attach(bot: Bot) {
-        bot.command("unsubscribe", commandUnsubscribe())
+        bot.command("unsubscribe", async (ctx) => {
+            try {
+                if (!ctx.from?.id) {
+                    await ctx.reply("Unable to identify user");
+                    return;
+                }
+
+                const userMassifs = await Massifs.getAllForRecipient(ctx.from.id);
+
+                if (userMassifs.length === 0) {
+                    await ctx.reply("You are not subscribed to any BRAs");
+                    return;
+                }
+
+                // Build and register menu dynamically for this user
+                const menu = await buildMountainMenu(ctx.from.id);
+                bot.use(menu);
+
+                await ctx.reply("Choose a mountain range to unsubscribe from", {reply_markup: menu});
+            } catch (error) {
+                console.error('Error in unsubscribe command:', error);
+                await ctx.reply("An error occurred. Please try again.");
+            }
+        });
     }
 }
 

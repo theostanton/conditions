@@ -19,16 +19,18 @@ export namespace ActionSubscriptions {
             if (isSubscribed) {
                 // Unsubscribe
                 await Subscriptions.unsubscribe(recipientId, massif);
-                await context.answerCallbackQuery(`Unsubscribed from ${massif.name}`);
+                await context.reply(`Unsubscribed from ${massif.name}`);
             } else {
                 // Subscribe
                 await Subscriptions.subscribe(recipientId, massif);
-                await context.answerCallbackQuery(`Subscribed to ${massif.name}`);
+                await context.reply(`Subscribed to ${massif.name}`);
                 await ActionBulletins.send(context, massif, false);
             }
 
             // Update the menu to show the new subscription status
-            await context.editMessageText(context.message?.text || "Choose a mountain range");
+            if (context.callbackQuery) {
+                await context.editMessageText(context.message?.text || "Choose a mountain range");
+            }
         } catch (error) {
             console.error('Error toggling subscription:', error);
             await context.reply(`Failed to update subscription for ${massif.name}. Please try again.`);

@@ -2,8 +2,38 @@ import {Context} from "grammy";
 import {Subscriptions} from "@database/models/Subscriptions";
 import {Massif} from "@app-types";
 import {ActionBulletins} from "@bot/actions/bulletins";
+import {Massifs} from "@database/models/Massifs";
 
 export namespace ActionSubscriptions {
+
+    export async function toggle(context: Context, massif: Massif): Promise<void> {
+        try {
+            if (!context.from?.id) {
+                await context.reply("Unable to identify user");
+                return;
+            }
+
+            const recipientId = context.from.id;
+            const isSubscribed = await Subscriptions.isSubscribed(recipientId, massif.code);
+
+            if (isSubscribed) {
+                // Unsubscribe
+                await Subscriptions.unsubscribe(recipientId, massif);
+                await context.answerCallbackQuery(`Unsubscribed from ${massif.name}`);
+            } else {
+                // Subscribe
+                await Subscriptions.subscribe(recipientId, massif);
+                await context.answerCallbackQuery(`Subscribed to ${massif.name}`);
+                await ActionBulletins.send(context, massif, false);
+            }
+
+            // Update the menu to show the new subscription status
+            await context.editMessageText(context.message?.text || "Choose a mountain range");
+        } catch (error) {
+            console.error('Error toggling subscription:', error);
+            await context.reply(`Failed to update subscription for ${massif.name}. Please try again.`);
+        }
+    }
 
     export async function subscribe(context: Context, massif: Massif, sendBulletin: boolean = true): Promise<void> {
         try {
@@ -16,10 +46,12 @@ export namespace ActionSubscriptions {
             const alreadySubscribed = await Subscriptions.isSubscribed(recipientId, massif.code);
 
             if (alreadySubscribed) {
-                await context.reply(`You are already subscribed to ${massif.name}`);
+                await context.answerCallbackQuery(`You are already subscribed to ${massif.name}`);
             } else {
                 await Subscriptions.subscribe(recipientId, massif);
-                await context.reply(`You are now subscribed to ${massif.name}`);
+
+                // Update the menu to show the new subscription status
+                await context.editMessageText(context.message?.text || "Choose a massif to subscribe to");
 
                 if (sendBulletin) {
                     await ActionBulletins.send(context, massif, false);
@@ -39,7 +71,15 @@ export namespace ActionSubscriptions {
             }
 
             await Subscriptions.unsubscribe(context.from.id, massif);
-            await context.reply(`You are now unsubscribed from ${massif.name}`);
+
+            // Update the menu with the new list of massifs
+            const remainingMassifs = await Massifs.getAllForRecipient(context.from.id);
+
+            if (remainingMassifs.length === 0) {
+                await context.editMessageText("You are now unsubscribed from all BERAs");
+            } else {
+                await context.editMessageText("Choose a massif to unsubscribe from");
+            }
         } catch (error) {
             console.error('Error unsubscribing:', error);
             await context.reply(`Failed to unsubscribe from ${massif.name}. Please try again.`);
@@ -54,7 +94,7 @@ export namespace ActionSubscriptions {
             }
 
             await Subscriptions.unsubscribeAll(context.from.id);
-            await context.reply("Unsubscribed from all BRAs");
+            await context.editMessageText("You are now unsubscribed from all BERAs");
         } catch (error) {
             console.error('Error unsubscribing from all:', error);
             await context.reply("Failed to unsubscribe. Please try again.");

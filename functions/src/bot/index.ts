@@ -1,7 +1,6 @@
 import {Bot} from "grammy";
 import {CommandGet} from './commands/get';
-import {CommandSubscribe} from './commands/subscribe';
-import {CommandUnsubscribe} from './commands/unsubscribe';
+import {CommandSubscriptions} from './commands/subscriptions';
 import {MassifCache} from '@cache/MassifCache';
 import {TELEGRAM_BOT_TOKEN} from "@config/envs";
 
@@ -14,14 +13,12 @@ export async function createBot(): Promise<Bot> {
     await MassifCache.initialize();
 
     await bot.api.setMyCommands([
-        {command: "get", description: "Get the latest BRA"},
-        {command: "subscribe", description: "Subscribe to a BRA"},
-        {command: "unsubscribe", description: "Unsubscribe from a BRA"},
+        {command: "get", description: "Get the latest BERA"},
+        {command: "subscriptions", description: "Manage your BRA subscriptions"},
     ]);
 
     await CommandGet.attach(bot)
-    await CommandSubscribe.attach(bot)
-    await CommandUnsubscribe.attach(bot)
+    await CommandSubscriptions.attach(bot)
 
     return bot;
 }

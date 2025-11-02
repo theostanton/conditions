@@ -2,18 +2,24 @@ import {Bot, Context} from "grammy";
 import {Menu} from "@grammyjs/menu";
 import {MassifCache} from "@cache/MassifCache";
 import {ActionSubscriptions} from "@bot/actions/subscriptions";
+import {Subscriptions} from "@database/models/Subscriptions";
 
-export namespace CommandSubscribe {
+export namespace CommandSubscriptions {
 
     function buildMassifMenu(mountain: string): Menu {
-        const massifMenu = new Menu<Context>(`subscribe-massifs-${mountain}`);
+        const massifMenu = new Menu<Context>(`subscriptions-massifs-${mountain}`);
 
-        massifMenu.dynamic((_ctx, range) => {
+        massifMenu.dynamic(async (ctx, range) => {
+            if (!ctx.from?.id) return;
+
             const massifs = MassifCache.getByMountain(mountain);
 
             for (const massif of massifs) {
-                range.text(massif.name, async (context) => {
-                    await ActionSubscriptions.subscribe(context, massif);
+                const isSubscribed = await Subscriptions.isSubscribed(ctx.from.id, massif.code);
+                const label = isSubscribed ? `✅ ${massif.name}` : massif.name;
+
+                range.text(label, async (context) => {
+                    await ActionSubscriptions.toggle(context, massif);
                 }).row();
             }
         });
@@ -24,13 +30,13 @@ export namespace CommandSubscribe {
     }
 
     function buildMountainMenu(): Menu {
-        const mountainMenu = new Menu<Context>("subscribe-mountains");
+        const mountainMenu = new Menu<Context>("subscriptions-mountains");
 
         mountainMenu.dynamic((_ctx, range) => {
             // Use cached data - no DB query!
             const mountains = MassifCache.getMountains();
             for (const mountain of mountains) {
-                range.submenu(mountain, `subscribe-massifs-${mountain}`).row();
+                range.submenu(mountain, `subscriptions-massifs-${mountain}`).row();
             }
         });
 
@@ -57,6 +63,6 @@ export namespace CommandSubscribe {
     export async function attach(bot: Bot) {
         const menu = buildMountainMenu();
         bot.use(menu);
-        bot.command("subscribe", command(menu));
+        bot.command("subscriptions", command(menu));
     }
 }

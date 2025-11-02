@@ -4,7 +4,7 @@ import {Client} from "ts-postgres";
 
 async function getBraSubscriptions(client: Client): Promise<BraSubscription[]> {
 
-  const result = await client.query("select massif,array_agg(recipient) from subscriptions_bras group by massif order by massif")
+  const result = await client.query("select massif,array_agg(recipient) from bra_subscriptions group by massif order by massif")
 
   const subscriptions: BraSubscription[] = []
 

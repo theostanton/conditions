@@ -1,6 +1,6 @@
 resource "google_storage_bucket" "bras" {
   name     = "${local.project_id}-bras"
-  location                    = "EU"
+  location                    = local.region
   force_destroy               = true
   uniform_bucket_level_access = false
 }

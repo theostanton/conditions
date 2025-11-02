@@ -1,6 +1,6 @@
 locals {
   project_id = "conditions-450312"
-  region     = "us-east1"
+  region     = "europe-west1"
 }
 
 provider "google" {

@@ -10,7 +10,7 @@ export namespace Database {
     export async function getMassifsWithSubscribers(): Promise<number[]> {
         const client = getClient();
         const result = await client.query<Pick<BulletinInfos, "massif">>(
-            "select concat(massif) as massif from subscriptions_bras group by massif"
+            "select concat(massif) as massif from bra_subscriptions group by massif"
         );
         return [...result].map(s => s.massif);
     }
@@ -18,7 +18,7 @@ export namespace Database {
     export async function getTotalSubscribers(): Promise<number> {
         const client = getClient();
         const result = await client.query<{ count: number }>(
-            "select count(distinct(recipient)) as count from subscriptions_bras"
+            "select count(distinct(recipient)) as count from bra_subscriptions"
         );
         return [...result][0].count
     }
@@ -103,7 +103,7 @@ export namespace Database {
         const client = getClient();
         const result = await client.query<SubscriptionRow>(
             `select s.massif as massif, string_agg(s.recipient, ',') as recipients
-             from subscriptions_bras as s
+             from bra_subscriptions as s
              group by s.massif;`
         );
         return [...result];

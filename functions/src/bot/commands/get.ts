@@ -15,7 +15,7 @@ export namespace CommandGet {
                 await context.reply(`No bulletin for ${massif.name}`);
             } else if (bulletin.valid_to < new Date()) {
                 await context.replyWithDocument(bulletin.public_url);
-                await context.reply(`Bulletin for ${massif.name} is outdated`);
+                await context.reply(`Latest bulletin for ${massif.name} is outdated`);
             } else {
                 await context.replyWithDocument(bulletin.public_url);
             }
@@ -29,7 +29,6 @@ export namespace CommandGet {
         const massifMenu = new Menu<Context>(`get-massifs-${mountain}`);
 
         massifMenu.dynamic((_ctx, range) => {
-            // Use cached data - no DB query!
             const massifs = MassifCache.getByMountain(mountain);
 
             for (const massif of massifs) {
@@ -48,7 +47,6 @@ export namespace CommandGet {
         const mountainMenu = new Menu<Context>("get-mountains");
 
         mountainMenu.dynamic((_ctx, range) => {
-            // Use cached data - no DB query!
             const mountains = MassifCache.getMountains();
             for (const mountain of mountains) {
                 range.submenu(mountain, `get-massifs-${mountain}`).row();

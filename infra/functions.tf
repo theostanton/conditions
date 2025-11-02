@@ -5,8 +5,9 @@ data "archive_file" "functions" {
 }
 
 resource "google_storage_bucket" "functions" {
-  name     = "${local.project_id}-functions"
-  location = local.region
+  name          = "${local.project_id}-functions"
+  location      = local.region
+  force_destroy = true
 }
 
 resource "google_storage_bucket_object" "functions" {

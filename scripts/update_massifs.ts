@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import format from "pg-format";
 import database from "./database";
 import {MassifRow} from "./types";
@@ -14,6 +15,8 @@ interface Massif {
 interface MassifProperties {
   title: string
   code: number
+  Departement?: string
+  mountain?: string
 }
 
 
@@ -27,7 +30,9 @@ async function fetchRegions(): Promise<MassifRow[]> {
 
   return data.features.map<MassifRow>(feature => ({
     code: feature.properties.code,
-    name: feature.properties.title
+    name: feature.properties.title,
+    departement: feature.properties.Departement,
+    mountain: feature.properties.mountain
   }))
 }
 
@@ -35,10 +40,18 @@ async function insert(massifs: MassifRow[]): Promise<void> {
 
   const client = await database()
 
-  const values: [string, number][] = massifs.map(massif => [massif.name, massif.code])
+  const values: [number, string, string | undefined, string | undefined][] = massifs.map(massif => [
+    massif.code,
+    massif.name,
+    massif.departement,
+    massif.mountain
+  ])
 
   try {
-    await client.query(format('INSERT INTO massifs (name,code) VALUES %L', values))
+    await client.query(format(
+      'INSERT INTO massifs (code, name, departement, mountain) VALUES %L ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, departement = EXCLUDED.departement, mountain = EXCLUDED.mountain',
+      values
+    ))
   } catch (err) {
     console.log(err)
   }

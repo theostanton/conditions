@@ -1,7 +1,9 @@
 create table massifs
 (
     name text not null,
-    code integer
+    code integer primary key,
+    departement text,
+    mountain text
 );
 
 create table recipients

@@ -8,6 +8,16 @@ resource "google_storage_bucket" "functions" {
   name          = "${local.project_id}-functions"
   location      = local.region
   force_destroy = true
+
+  # Automatically delete old deployment archives after 30 days
+  lifecycle_rule {
+    condition {
+      age = 30 # days
+    }
+    action {
+      type = "Delete"
+    }
+  }
 }
 
 resource "google_storage_bucket_object" "functions" {

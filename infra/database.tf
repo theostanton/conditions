@@ -7,10 +7,9 @@ resource "google_sql_database_instance" "instance" {
     availability_type = "ZONAL"
     ip_configuration {
       ipv4_enabled = true
-      authorized_networks {
-        name  = "Chamonix"
-        value = "79.88.5.26/32"
-      }
+      # No authorized_networks - public IP exists but not accessible externally
+      # Cloud Functions connect via Unix socket: /cloudsql/instance-connection-name
+      # This is more secure than allowing specific IPs
     }
     tier = "db-f1-micro"
 

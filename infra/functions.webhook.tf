@@ -42,7 +42,21 @@ resource "google_cloud_run_v2_service_iam_binding" "webhook" {
   project  = local.project_id
 }
 
+resource "null_resource" "webhook_cloud_sql" {
+  depends_on = [google_cloudfunctions2_function.webhook]
+
+  triggers = {
+    function_id = google_cloudfunctions2_function.webhook.id
+  }
+
+  provisioner "local-exec" {
+    command = "gcloud run services update ${google_cloudfunctions2_function.webhook.name} --add-cloudsql-instances ${google_sql_database_instance.instance.connection_name} --region ${local.region} --project ${local.project_id}"
+  }
+}
+
 resource "null_resource" "webhook_set" {
+  depends_on = [null_resource.webhook_cloud_sql]
+
   triggers = {
     webhook_uri = google_cloudfunctions2_function.webhook.service_config[0].uri
   }

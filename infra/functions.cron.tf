@@ -23,6 +23,7 @@ resource "google_cloudfunctions2_function" "cron" {
   service_config {
     available_memory      = "512Mi"
     timeout_seconds       = 540
+    max_instance_count    = 1 # Only one cron execution should run at a time
     environment_variables = {
       TELEGRAM_BOT_TOKEN = var.telegram_bot_token
       PGHOST             = "/cloudsql/${google_sql_database_instance.instance.connection_name}"

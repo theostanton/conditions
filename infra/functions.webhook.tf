@@ -16,8 +16,9 @@ resource "google_cloudfunctions2_function" "webhook" {
   }
 
   service_config {
-    available_memory = "256Mi"
-    timeout_seconds  = 60
+    available_memory   = "256Mi"
+    timeout_seconds    = 60
+    max_instance_count = 10 # Limit concurrent instances to prevent abuse/unexpected costs
     environment_variables = {
       TELEGRAM_BOT_TOKEN = var.telegram_bot_token
       PGHOST             = "/cloudsql/${google_sql_database_instance.instance.connection_name}"

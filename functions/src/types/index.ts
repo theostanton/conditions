@@ -8,7 +8,8 @@ export type Bulletin = {
 
 export type Massif = {
     name: string,
-    code: number
+    code: number,
+    mountain?: string
 }
 
 export type BulletinInfos = Pick<Bulletin, "massif" | "valid_from" | "valid_to">

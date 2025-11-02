@@ -14,7 +14,19 @@ export namespace Massifs {
 
     export async function getAll(): Promise<Massif[]> {
         const client = getClient();
-        const result = await client.query<Massif>("SELECT name,code FROM massifs ORDER BY name");
+        const result = await client.query<Massif>("SELECT name,code,mountain FROM massifs ORDER BY name");
+        return [...result];
+    }
+
+    export async function getDistinctMountains(): Promise<string[]> {
+        const client = getClient();
+        const result = await client.query<{mountain: string}>("SELECT DISTINCT mountain FROM massifs WHERE mountain IS NOT NULL ORDER BY mountain");
+        return [...result].map(row => row.mountain);
+    }
+
+    export async function getByMountain(mountain: string): Promise<Massif[]> {
+        const client = getClient();
+        const result = await client.query<Massif>("SELECT name,code,mountain FROM massifs WHERE mountain = $1 ORDER BY name", [mountain]);
         return [...result];
     }
 

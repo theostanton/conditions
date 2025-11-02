@@ -7,37 +7,67 @@ import {CommandGet} from "@bot/commands/get";
 
 export namespace CommandSubscribe {
 
-    async function buildMenu(): Promise<Menu> {
-        const massifs = await Massifs.getAll()
-        const subscribeMenu = new Menu<Context>("subscribe");
+    // Cache for mountains data
+    let mountainsCache: string[] = [];
 
-        massifs.forEach(massif => {
-            subscribeMenu.text(massif.name, async context => {
-                const recipientId = context.from?.id as number
-                const alreadySubscribed = await Subscriptions.isSubscribed(recipientId, massif.code)
-                if (alreadySubscribed) {
-                    await context.reply(`You are already subscribed to ${massif.name}`);
-                } else {
-                    await Subscriptions.subscribe(recipientId, massif);
-                    await context.reply(`You are now subscribed to ${massif.name}`);
-                    await CommandGet.send(context,massif)
-                }
-            }).row();
-        });
-
-        return subscribeMenu;
+    async function initializeCache() {
+        mountainsCache = await Massifs.getDistinctMountains();
     }
 
+    function buildMassifMenu(mountain: string): Menu {
+        const massifMenu = new Menu<Context>(`subscribe-massifs-${mountain}`);
 
-    function command(subscribeMenu: Menu): (ctx: Context) => Promise<void> {
+        massifMenu.dynamic(async (_ctx, range) => {
+            const massifs = await Massifs.getByMountain(mountain);
+
+            for (const massif of massifs) {
+                range.text(massif.name, async (context) => {
+                    const recipientId = context.from?.id as number;
+                    const alreadySubscribed = await Subscriptions.isSubscribed(recipientId, massif.code);
+                    if (alreadySubscribed) {
+                        await context.reply(`You are already subscribed to ${massif.name}`);
+                    } else {
+                        await Subscriptions.subscribe(recipientId, massif);
+                        await context.reply(`You are now subscribed to ${massif.name}`);
+                        await CommandGet.send(context, massif);
+                    }
+                }).row();
+            }
+        });
+
+        massifMenu.back("← Back to mountains");
+
+        return massifMenu;
+    }
+
+    function buildMountainMenu(): Menu {
+        const mountainMenu = new Menu<Context>("subscribe-mountains");
+
+        mountainMenu.dynamic((_ctx, range) => {
+            for (const mountain of mountainsCache) {
+                range.submenu(mountain, `subscribe-massifs-${mountain}`).row();
+            }
+        });
+
+        // Register all massif submenus
+        for (const mountain of mountainsCache) {
+            const massifMenu = buildMassifMenu(mountain);
+            mountainMenu.register(massifMenu);
+        }
+
+        return mountainMenu;
+    }
+
+    function command(mountainMenu: Menu): (ctx: Context) => Promise<void> {
         return async (ctx: Context) => {
-            await ctx.reply("Subscribe to BRAs", {reply_markup: subscribeMenu});
+            await ctx.reply("Choose a mountain range", {reply_markup: mountainMenu});
         };
     }
 
     export async function attach(bot: Bot) {
-        const menu = await buildMenu()
-        bot.use(menu)
-        bot.command("subscribe", command(menu))
+        await initializeCache();
+        const menu = buildMountainMenu();
+        bot.use(menu);
+        bot.command("subscribe", command(menu));
     }
 }

@@ -7,6 +7,13 @@ import {Massif} from "@app-types";
 
 export namespace CommandGet {
 
+    // Cache for mountains data
+    let mountainsCache: string[] = [];
+
+    async function initializeCache() {
+        mountainsCache = await Massifs.getDistinctMountains();
+    }
+
     export async function send(context: Context, massif: Massif) {
         const bulletin = await Bulletins.getLatest(massif.code);
 
@@ -21,32 +28,53 @@ export namespace CommandGet {
         }
     }
 
+    function buildMassifMenu(mountain: string): Menu {
+        const massifMenu = new Menu<Context>(`get-massifs-${mountain}`);
 
-    async function buildMenu(): Promise<Menu> {
+        massifMenu.dynamic(async (_ctx, range) => {
+            const massifs = await Massifs.getByMountain(mountain);
 
-        const massifs = await Massifs.getAll()
-        const getMenu = new Menu("get");
-
-        massifs.forEach(massif => {
-            getMenu.text(massif.name, async context => {
-                await send(context, massif)
-            }).row();
+            for (const massif of massifs) {
+                range.text(massif.name, async (context) => {
+                    await send(context, massif);
+                }).row();
+            }
         });
 
-        return getMenu;
+        massifMenu.back("← Back to mountains");
+
+        return massifMenu;
     }
 
-    function commandGet(getMenu: Menu): (context: Context) => Promise<void> {
+    function buildMountainMenu(): Menu {
+        const mountainMenu = new Menu<Context>("get-mountains");
+
+        mountainMenu.dynamic((_ctx, range) => {
+            for (const mountain of mountainsCache) {
+                range.submenu(mountain, `get-massifs-${mountain}`).row();
+            }
+        });
+
+        // Register all massif submenus
+        for (const mountain of mountainsCache) {
+            const massifMenu = buildMassifMenu(mountain);
+            mountainMenu.register(massifMenu);
+        }
+
+        return mountainMenu;
+    }
+
+    function commandGet(mountainMenu: Menu): (context: Context) => Promise<void> {
         return async (context: Context) => {
-            await context.reply("Get the latest BRA", {reply_markup: getMenu});
+            await context.reply("Choose a mountain range", {reply_markup: mountainMenu});
         };
     }
 
     export async function attach(bot: Bot) {
-        const menu = await buildMenu()
-        bot.use(menu)
+        await initializeCache();
+        const menu = buildMountainMenu();
+        bot.use(menu);
         bot.command("get", commandGet(menu));
-
     }
 
 

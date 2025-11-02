@@ -23,7 +23,7 @@ resource "google_cloudfunctions2_function" "webhook" {
       TELEGRAM_BOT_TOKEN = var.telegram_bot_token
       PGHOST             = "/cloudsql/${google_sql_database_instance.instance.connection_name}"
       PGDATABASE         = var.db_database
-      PGUSER             = var.db_user
+      PGUSER             = local.db_user
       PGPASSWORD         = var.db_password
       METEOFRANCE_TOKEN  = var.meteofrance_token
       GOOGLE_PROJECT_ID  = local.project_id

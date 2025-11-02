@@ -1,3 +1,7 @@
+locals {
+  db_user = "postgres"
+}
+
 variable "telegram_bot_token" {
   description = "Telegram Bot API token"
   type        = string
@@ -8,12 +12,6 @@ variable "db_database" {
   description = "Database name"
   type        = string
   default     = "database"
-}
-
-variable "db_user" {
-  description = "Database user"
-  type        = string
-  default     = "postgres"
 }
 
 variable "db_password" {

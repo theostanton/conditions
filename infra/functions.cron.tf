@@ -21,14 +21,14 @@ resource "google_cloudfunctions2_function" "cron" {
   }
 
   service_config {
-    available_memory      = "512Mi" # Monitor actual usage - may be able to reduce to 256Mi
-    timeout_seconds       = 540     # Monitor actual duration - may be able to reduce
-    max_instance_count    = 1       # Only one cron execution should run at a time
+    available_memory   = "256Mi" # Monitor actual usage - may be able to reduce
+    timeout_seconds    = 240     # Monitor actual duration - may be able to reduce
+    max_instance_count = 1       # Only one cron execution should run at a time
     environment_variables = {
       TELEGRAM_BOT_TOKEN = var.telegram_bot_token
       PGHOST             = "/cloudsql/${google_sql_database_instance.instance.connection_name}"
       PGDATABASE         = var.db_database
-      PGUSER             = var.db_user
+      PGUSER             = local.db_user
       PGPASSWORD         = var.db_password
       METEOFRANCE_TOKEN  = var.meteofrance_token
       GOOGLE_PROJECT_ID  = local.project_id
@@ -71,8 +71,7 @@ resource "google_service_account" "scheduler_sa" {
 resource "google_cloud_scheduler_job" "cron_trigger" {
   depends_on  = [google_project_service.cloud_scheduler_api]
   name        = "cron-job-trigger"
-  description = "Triggers the cron Cloud Function on a schedule"
-  schedule    = "0 7,17 * * *" # Twice daily at 7:00 UTC (8/9am CET) and 17:00 UTC (6/7pm CET)
+  schedule    = "0 * * * *" # Hourly
   time_zone   = "UTC"
   region      = local.region
   project     = local.project_id

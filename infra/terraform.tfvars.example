@@ -6,5 +6,4 @@ meteofrance_token  = "your-meteofrance-api-token"
 
 # Database connection (for reference, actual connection uses Cloud SQL Unix socket)
 db_database = "database"
-db_user     = "user"
 db_password = "strong-random-password-here" # Should match db_user_password

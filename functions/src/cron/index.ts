@@ -14,11 +14,14 @@ export default async function () {
     try {
         await setupDatabase();
 
-        // Massifs with subscribers
-        stage = 'getTotalSubscribers'
-        execution.subscriber_count = await Database.getTotalSubscribers();
-        stage = 'getMassifsWithSubscribers'
-        execution.massifs_with_subscribers_count = await Database.getMassifsWithSubscribers().then(value => value.length)
+        // Massifs with subscribers - fetch both in parallel
+        stage = 'getSubscriberStats'
+        const [totalSubscribers, massifsWithSubscribers] = await Promise.all([
+            Database.getTotalSubscribers(),
+            Database.getMassifsWithSubscribers()
+        ]);
+        execution.subscriber_count = totalSubscribers;
+        execution.massifs_with_subscribers_count = massifsWithSubscribers.length;
 
         // Check Bulletin difference
         stage = 'checkForNewBulletins'
@@ -44,9 +47,6 @@ export default async function () {
             stage = 'generateSubscriptionDestinations'
             const destinations = await generateSubscriptionDestinations(newBulletins);
             console.log(`destinations=${JSON.stringify(destinations)}`);
-
-            // Calculate subscriber count and bulletins delivered
-            execution.subscriber_count = destinations.reduce((sum, dest) => sum + dest.recipients.length, 0);
 
             // Send to subscribers
             stage = 'send'

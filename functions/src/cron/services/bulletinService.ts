@@ -28,31 +28,54 @@ export async function checkForNewBulletins(): Promise<NewBulletinsResult> {
     const latestStoredBulletins = await Database.getLatestStoredBulletins();
     console.log(`latestStoredBulletins=${JSON.stringify(latestStoredBulletins)}`);
 
+    // Create a map for O(1) lookups instead of O(n) find operations
+    const storedBulletinsMap = new Map(
+        latestStoredBulletins.map(b => [b.massif, b])
+    );
+
     const bulletinInfosToUpdate: BulletinInfos[] = [];
     const massifsNew: number[] = []
     const massifsWithUpdate: number[] = []
     const massifsWithNoUpdate: number[] = []
     const failedMassifs: number[] = []
 
-    for (const massif of massifsWithSubscribers) {
-        console.log(`Checking for new bulletin for massif=${massif}`);
+    // Fetch all bulletin metadata in parallel
+    const results = await Promise.allSettled(
+        massifsWithSubscribers.map(async (massif) => {
+            console.log(`Checking for new bulletin for massif=${massif}`);
 
-        const storedBulletin = latestStoredBulletins.find(b => b.massif == massif);
-        const response = await axios.get(
-            `https://public-api.meteofrance.fr/public/DPBRA/massif/BRA?id-massif=${massif}&format=xml`,
-            {headers: meteoFranceHeaders}
-        );
+            const response = await axios.get(
+                `https://public-api.meteofrance.fr/public/DPBRA/massif/BRA?id-massif=${massif}&format=xml`,
+                {headers: meteoFranceHeaders, timeout: 10000}
+            );
 
-        const matchFrom = response.data.match(/DATEBULLETIN="(.[0-9-T:]*)"/);
-        const matchUntil = response.data.match(/DATEVALIDITE="(.[0-9-T:]*)"/);
+            const matchFrom = response.data.match(/DATEBULLETIN="(.[0-9-T:]*)"/);
+            const matchUntil = response.data.match(/DATEVALIDITE="(.[0-9-T:]*)"/);
+
+            return {massif, matchFrom, matchUntil, data: response.data};
+        })
+    );
+
+    // Process results
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const massif = massifsWithSubscribers[i];
+
+        if (result.status === 'rejected') {
+            console.error(`Failed to fetch bulletin for massif=${massif}:`, result.reason);
+            failedMassifs.push(massif);
+            continue;
+        }
+
+        const {matchFrom, matchUntil, data} = result.value;
 
         if (matchFrom == null || matchUntil == null) {
-            console.log(`No matches response.data=${response.data}`);
-            failedMassifs.push(massif)
+            console.log(`No matches response.data=${data}`);
+            failedMassifs.push(massif);
         } else {
-
             const bulletinValidFrom = new Date(matchFrom[1]);
             const bulletinValidUntil = new Date(matchUntil[1]);
+            const storedBulletin = storedBulletinsMap.get(massif);
 
             if (storedBulletin == undefined) {
                 console.log(`No existing bulletin for massif=${massif}`);
@@ -61,7 +84,7 @@ export async function checkForNewBulletins(): Promise<NewBulletinsResult> {
                     valid_from: bulletinValidFrom,
                     valid_to: bulletinValidUntil
                 });
-                massifsNew.push(massif)
+                massifsNew.push(massif);
             } else if (bulletinValidFrom > storedBulletin.valid_from) {
                 console.log(`New bulletin for massif=${massif} ${bulletinValidFrom} > ${storedBulletin.valid_from}`);
                 bulletinInfosToUpdate.push({
@@ -69,10 +92,10 @@ export async function checkForNewBulletins(): Promise<NewBulletinsResult> {
                     valid_from: bulletinValidFrom,
                     valid_to: bulletinValidUntil
                 });
-                massifsWithUpdate.push(massif)
+                massifsWithUpdate.push(massif);
             } else {
                 console.log(`No new bulletin for massif=${massif} ${bulletinValidFrom} <= ${storedBulletin.valid_from}`);
-                massifsWithNoUpdate.push(massif)
+                massifsWithNoUpdate.push(massif);
             }
         }
     }
@@ -113,38 +136,83 @@ async function storeBulletin(filename: string): Promise<string> {
     return response[0].publicUrl();
 }
 
-async function generateFilename(bulletin: BulletinInfos): Promise<string> {
-    const name = await Database.getMassifName(bulletin.massif);
+async function generateFilename(bulletin: BulletinInfos, massifName: string): Promise<string> {
     const toDateString = formatDate(bulletin.valid_to);
-    const filename = `./dist/${name} ${toDateString}.pdf`;
+    const filename = `./dist/${massifName} ${toDateString}.pdf`;
     return filename;
 }
 
 export async function fetchAndStoreBulletins(newBulletinsToFetch: BulletinInfos[]): Promise<Bulletin[]> {
-    const bulletins: Bulletin[] = [];
-
-    for (const bulletin of newBulletinsToFetch) {
-        // Generate Filename
-        const filename = await generateFilename(bulletin);
-
-        // Fetch PDF
-        const fetchResult = await fetchBulletin(bulletin.massif, filename);
-        console.log(`fetchResult=${fetchResult}`);
-        if (fetchResult == null) {
-            console.log(`Failed to fetch bulletin for massif=${bulletin.massif}`);
-            break;
-        }
-
-        // Store PDF
-        const publicUrl = await storeBulletin(filename);
-        console.log(`Stored at publicUrl=${publicUrl}`);
-
-        // Write to database
-        await Database.insertBulletin(bulletin.massif, filename, publicUrl, bulletin.valid_from, bulletin.valid_to);
-        console.log();
-
-        bulletins.push({...bulletin, filename, public_url: publicUrl});
+    if (newBulletinsToFetch.length === 0) {
+        return [];
     }
 
-    return bulletins;
+    // Fetch all massif names in one batch
+    const massifCodes = newBulletinsToFetch.map(b => b.massif);
+    const massifNames = await Database.getMassifNames(massifCodes);
+    const massifNamesMap = new Map(massifNames.map(m => [m.code, m.name]));
+
+    // Process all bulletins in parallel
+    const results = await Promise.allSettled(
+        newBulletinsToFetch.map(async (bulletin) => {
+            const massifName = massifNamesMap.get(bulletin.massif);
+            if (!massifName) {
+                throw new Error(`Massif name not found for code ${bulletin.massif}`);
+            }
+
+            const filename = await generateFilename(bulletin, massifName);
+
+            // Fetch PDF
+            const fetchResult = await fetchBulletin(bulletin.massif, filename);
+            console.log(`fetchResult=${fetchResult}`);
+            if (fetchResult == null) {
+                throw new Error(`Failed to fetch bulletin for massif=${bulletin.massif}`);
+            }
+
+            // Store PDF
+            const publicUrl = await storeBulletin(filename);
+            console.log(`Stored at publicUrl=${publicUrl}`);
+
+            return {
+                bulletin,
+                filename,
+                publicUrl
+            };
+        })
+    );
+
+    // Collect successful bulletins
+    const successfulBulletins: Bulletin[] = [];
+    const dbInserts: Array<{
+        massif: number;
+        filename: string;
+        publicUrl: string;
+        validFrom: Date;
+        validTo: Date;
+    }> = [];
+
+    for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        if (result.status === 'fulfilled') {
+            const {bulletin, filename, publicUrl} = result.value;
+            successfulBulletins.push({...bulletin, filename, public_url: publicUrl});
+            dbInserts.push({
+                massif: bulletin.massif,
+                filename,
+                publicUrl,
+                validFrom: bulletin.valid_from,
+                validTo: bulletin.valid_to
+            });
+        } else {
+            console.error(`Failed to process bulletin:`, result.reason);
+        }
+    }
+
+    // Batch insert all bulletins into database
+    if (dbInserts.length > 0) {
+        await Database.insertBulletins(dbInserts);
+        console.log(`Inserted ${dbInserts.length} bulletins into database`);
+    }
+
+    return successfulBulletins;
 }

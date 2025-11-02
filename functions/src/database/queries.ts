@@ -55,6 +55,50 @@ export namespace Database {
         return [...result][0].name;
     }
 
+    export async function getMassifNames(massifCodes: number[]): Promise<Array<{ code: number; name: string }>> {
+        if (massifCodes.length === 0) {
+            return [];
+        }
+        const client = getClient();
+        const placeholders = massifCodes.map((_, i) => `$${i + 1}`).join(',');
+        const result = await client.query<{ code: number; name: string }>(
+            `select code, name from massifs where code in (${placeholders})`,
+            massifCodes
+        );
+        return [...result];
+    }
+
+    export async function insertBulletins(
+        bulletins: Array<{
+            massif: number;
+            filename: string;
+            publicUrl: string;
+            validFrom: Date;
+            validTo: Date;
+        }>
+    ): Promise<void> {
+        if (bulletins.length === 0) {
+            return;
+        }
+
+        const client = getClient();
+        const values: any[] = [];
+        const placeholders: string[] = [];
+
+        bulletins.forEach((b, i) => {
+            const base = i * 5;
+            placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
+            values.push(b.massif, b.filename, b.publicUrl, b.validFrom, b.validTo);
+        });
+
+        await client.query(
+            `insert into bras (massif, filename, public_url, valid_from, valid_to)
+             values ${placeholders.join(', ')}`,
+            values
+        );
+        console.log(`Batch inserted ${bulletins.length} bulletins into database`);
+    }
+
     export async function getSubscriptionsByMassif(): Promise<SubscriptionRow[]> {
         const client = getClient();
         const result = await client.query<SubscriptionRow>(

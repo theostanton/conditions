@@ -14,11 +14,24 @@ export async function createBot(): Promise<Bot> {
 
     await bot.api.setMyCommands([
         {command: "get", description: "Get the latest BERA"},
-        {command: "subscriptions", description: "Manage your BRA subscriptions"},
+        {command: "subscriptions", description: "Manage your BERA subscriptions"},
     ]);
 
     await CommandGet.attach(bot)
     await CommandSubscriptions.attach(bot)
+
+    bot.on('message:text', async (ctx) => {
+        const text = ctx.message.text;
+
+        // Skip if it's a command (starts with /)
+        if (text.startsWith('/')) {
+            return;
+        }
+
+        await ctx.reply(
+            "👇Hit the Menu button to get started"
+        );
+    });
 
     return bot;
 }

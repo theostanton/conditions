@@ -12,10 +12,9 @@ export async function createBot(): Promise<Bot> {
     // Initialize massif cache
     await MassifCache.initialize();
 
-    await bot.api.setMyCommands([
-        {command: "get", description: "Get the latest BERA"},
-        {command: "subscriptions", description: "Manage your BERA subscriptions"},
-    ]);
+    // Note: bot.api.setMyCommands() has been removed from the hot path.
+    // Commands only need to be set once. Run this manually when deploying:
+    // const bot = new Bot(token); await bot.api.setMyCommands([...]);
 
     await CommandGet.attach(bot)
     await CommandSubscriptions.attach(bot)

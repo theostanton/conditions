@@ -4,6 +4,7 @@ import {createBot} from "@bot/index";
 import {webhookCallback} from "grammy";
 
 let bot: Awaited<ReturnType<typeof createBot>> | null = null;
+let handler: ((req: any, res: any) => Promise<void>) | null = null;
 
 async function initBot() {
     if (!bot) {
@@ -12,6 +13,9 @@ async function initBot() {
 
         console.log('Creating bot');
         bot = await createBot();
+
+        // Cache the webhook handler to avoid recreating on every request
+        handler = webhookCallback(bot, "express");
     }
     return bot;
 }
@@ -19,14 +23,10 @@ async function initBot() {
 export async function botWebhook(req: Request, res: Response) {
     try {
         // Initialize bot on first request (cold start)
-        const botInstance = await initBot();
+        await initBot();
 
-        // Use Grammy's webhook callback with express adapter
-        // (GCF functions-framework provides Express-like req/res)
-        const handler = webhookCallback(botInstance, "express");
-
-        // Handle the request
-        await handler(req as any, res as any);
+        // Use cached webhook handler
+        await handler!(req as any, res as any);
     } catch (error) {
         console.error('Error handling webhook:', error);
         res.status(500).send('Internal Server Error');

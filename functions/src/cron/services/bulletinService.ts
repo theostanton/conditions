@@ -5,7 +5,7 @@ import {Storage} from '@google-cloud/storage';
 import {PROJECT_ID, METEOFRANCE_TOKEN} from "@config/envs";
 import {Bulletin, BulletinInfos} from "@app-types";
 import {Database} from "@database/queries";
-import {formatDate} from "@utils/formatters";
+import {formatDateTime} from "@utils/formatters";
 
 const meteoFranceHeaders: AxiosHeaders = new AxiosHeaders();
 meteoFranceHeaders.set('Content-Type', 'application/xml');
@@ -28,11 +28,6 @@ export namespace BulletinService {
         const latestStoredBulletins = await Database.getLatestStoredBulletins();
         console.log(`latestStoredBulletins=${JSON.stringify(latestStoredBulletins)}`);
 
-        // Create a map for O(1) lookups instead of O(n) find operations
-        const storedBulletinsMap = new Map(
-            latestStoredBulletins.map(b => [b.massif, b])
-        );
-
         const bulletinInfosToUpdate: BulletinInfos[] = [];
         const massifsNew: number[] = []
         const massifsWithUpdate: number[] = []
@@ -45,7 +40,7 @@ export namespace BulletinService {
                 console.log(`Checking for new bulletin for massif=${massif}`);
 
                 const response = await axios.get(
-                    `https://public-api.meteofrance.fr/public/DPBRA/massif/BRA?id-massif=${massif}&format=xml`,
+                    `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${massif}&format=xml`,
                     {headers: meteoFranceHeaders, timeout: 10000}
                 );
 
@@ -75,7 +70,7 @@ export namespace BulletinService {
             } else {
                 const bulletinValidFrom = new Date(matchFrom[1]);
                 const bulletinValidUntil = new Date(matchUntil[1]);
-                const storedBulletin = storedBulletinsMap.get(massif);
+                const storedBulletin = latestStoredBulletins.find(value => value.massif == massif);
 
                 if (storedBulletin == undefined) {
                     console.log(`No existing bulletin for massif=${massif}`);
@@ -103,7 +98,7 @@ export namespace BulletinService {
         return {bulletinInfosToUpdate, massifsNew, failedMassifs, massifsWithUpdate, massifsWithNoUpdate}
     }
 
-    async function fetchBulletin(massif: number, filename: string): Promise<string | null> {
+    async function  fetchBulletin(massif: number, filename: string): Promise<string | null> {
         const resp = await fetch(
             `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${massif}&format=pdf`,
             {headers: meteoFranceHeaders}
@@ -137,8 +132,8 @@ export namespace BulletinService {
     }
 
     async function generateFilename(bulletin: BulletinInfos, massifName: string): Promise<string> {
-        const toDateString = formatDate(bulletin.valid_to);
-        return `./dist/${massifName} ${toDateString}.pdf`;
+        const toDateString = formatDateTime(bulletin.valid_to);
+        return `/tmp/${massifName}-${toDateString}.pdf`;
     }
 
     export async function fetchAndStoreBulletins(newBulletinsToFetch: BulletinInfos[]): Promise<Bulletin[]> {
@@ -148,13 +143,14 @@ export namespace BulletinService {
 
         // Fetch all massif names in one batch
         const massifCodes = newBulletinsToFetch.map(b => b.massif);
+        console.log(`fetchAndStoreBulletins() massifCodes=${massifCodes}`);
         const massifNames = await Database.getMassifNames(massifCodes);
-        const massifNamesMap = new Map(massifNames.map(m => [m.code, m.name]));
+        console.log(`fetchAndStoreBulletins() massifNames=${JSON.stringify(massifNames)}`);
 
         // Process all bulletins in parallel
         const results = await Promise.allSettled(
             newBulletinsToFetch.map(async (bulletin) => {
-                const massifName = massifNamesMap.get(bulletin.massif);
+                const massifName = massifNames.find(value => value.code == bulletin.massif)?.name
                 if (!massifName) {
                     throw new Error(`Massif name not found for code ${bulletin.massif}`);
                 }

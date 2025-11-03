@@ -56,7 +56,7 @@ export namespace CommandSubscriptions {
                 await ctx.reply("Unable to identify user");
                 return;
             }
-            await ctx.reply("Choose a mountain range", {reply_markup: mountainMenu});
+            await ctx.reply("Toggle your subscriptions:", {reply_markup: mountainMenu});
         };
     }
 

@@ -13,6 +13,7 @@ tasks:
       - rm -rf ./dist/*
       - yarn build
       - cp package.prod.json ../dist/functions/package.json
+      - mkdir -p ../dist/dist/
 
   apply:
     dir: infra/

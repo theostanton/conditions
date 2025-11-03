@@ -21,6 +21,25 @@ export namespace BulletinService {
         massifsWithNoUpdate: number[]
     }
 
+    export async function fetchBulletinMetadata(massifCode: number): Promise<{validFrom: Date, validTo: Date} | undefined> {
+        const response = await axios.get(
+            `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${massifCode}&format=xml`,
+            {headers: meteoFranceHeaders, timeout: 10000}
+        );
+
+        const matchFrom = response.data.match(/DATEBULLETIN="(.[0-9-T:]*)"/);
+        const matchUntil = response.data.match(/DATEVALIDITE="(.[0-9-T:]*)"/);
+
+        if (matchFrom == null || matchUntil == null) {
+            return undefined;
+        }
+
+        return {
+            validFrom: new Date(matchFrom[1]),
+            validTo: new Date(matchUntil[1])
+        };
+    }
+
     export async function checkForNewBulletins(): Promise<NewBulletinsResult> {
         const massifsWithSubscribers = await Database.getMassifsWithSubscribers();
         console.log(`massifsWithSubscribers=${JSON.stringify(massifsWithSubscribers)}`);
@@ -38,16 +57,8 @@ export namespace BulletinService {
         const results = await Promise.allSettled(
             massifsWithSubscribers.map(async (massif) => {
                 console.log(`Checking for new bulletin for massif=${massif}`);
-
-                const response = await axios.get(
-                    `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${massif}&format=xml`,
-                    {headers: meteoFranceHeaders, timeout: 10000}
-                );
-
-                const matchFrom = response.data.match(/DATEBULLETIN="(.[0-9-T:]*)"/);
-                const matchUntil = response.data.match(/DATEVALIDITE="(.[0-9-T:]*)"/);
-
-                return {massif, matchFrom, matchUntil, data: response.data};
+                const metadata = await fetchBulletinMetadata(massif);
+                return {massif, metadata};
             })
         );
 
@@ -62,34 +73,33 @@ export namespace BulletinService {
                 continue;
             }
 
-            const {matchFrom, matchUntil, data} = result.value;
+            const {metadata} = result.value;
 
-            if (matchFrom == null || matchUntil == null) {
-                console.log(`No matches response.data=${data}`);
+            if (!metadata) {
+                console.log(`No bulletin metadata available for massif=${massif}`);
                 failedMassifs.push(massif);
             } else {
-                const bulletinValidFrom = new Date(matchFrom[1]);
-                const bulletinValidUntil = new Date(matchUntil[1]);
+                const {validFrom, validTo} = metadata;
                 const storedBulletin = latestStoredBulletins.find(value => value.massif == massif);
 
                 if (storedBulletin == undefined) {
                     console.log(`No existing bulletin for massif=${massif}`);
                     bulletinInfosToUpdate.push({
                         massif: massif,
-                        valid_from: bulletinValidFrom,
-                        valid_to: bulletinValidUntil
+                        valid_from: validFrom,
+                        valid_to: validTo
                     });
                     massifsNew.push(massif);
-                } else if (bulletinValidFrom > storedBulletin.valid_from) {
-                    console.log(`New bulletin for massif=${massif} ${bulletinValidFrom} > ${storedBulletin.valid_from}`);
+                } else if (validFrom > storedBulletin.valid_from) {
+                    console.log(`New bulletin for massif=${massif} ${validFrom} > ${storedBulletin.valid_from}`);
                     bulletinInfosToUpdate.push({
                         massif: massif,
-                        valid_from: bulletinValidFrom,
-                        valid_to: bulletinValidUntil
+                        valid_from: validFrom,
+                        valid_to: validTo
                     });
                     massifsWithUpdate.push(massif);
                 } else {
-                    console.log(`No new bulletin for massif=${massif} ${bulletinValidFrom} <= ${storedBulletin.valid_from}`);
+                    console.log(`No new bulletin for massif=${massif} ${validFrom} <= ${storedBulletin.valid_from}`);
                     massifsWithNoUpdate.push(massif);
                 }
             }
@@ -132,8 +142,8 @@ export namespace BulletinService {
     }
 
     async function generateFilename(bulletin: BulletinInfos, massifName: string): Promise<string> {
-        const toDateString = formatDateTime(bulletin.valid_to);
-        return `/tmp/${massifName}-${toDateString}.pdf`;
+        const toDateString = formatDateTime(bulletin.valid_from);
+        return `/tmp/${massifName} ${toDateString}.pdf`;
     }
 
     export async function fetchAndStoreBulletins(newBulletinsToFetch: BulletinInfos[]): Promise<Bulletin[]> {

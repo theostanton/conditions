@@ -12,7 +12,7 @@ User-Agent: axios/1.6.0
 ###
 ### Get BRA (Bulletin d'estimation du Risque d'Avalanche) - XML Format
 ### Example massif IDs: 1=Chablais, 2=Aravis, 3=Mont-Blanc
-GET https://public-api.meteofrance.fr/public/DPBRA/massif/BRA?id-massif=3&format=xml
+GET https://public-api.meteofrance.fr/public/DPBRA/massif/BRA?id-massif=4&format=xml
 Content-Type: application/xml
 apikey: {{meteofrance_api_key}}
 User-Agent: axios/1.6.0

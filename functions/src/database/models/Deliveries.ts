@@ -5,15 +5,11 @@ export namespace Deliveries {
 
     type PartialBulletin = Pick<Bulletin, 'massif' | 'valid_from'>
 
-    export function extractTimestamp(bulletin: PartialBulletin): number {
-        return bulletin.valid_from.getTime()
-    }
-
     export async function hasBeenDelivered(recipient: string, bulletin: PartialBulletin): Promise<boolean> {
         const client = getClient();
         const result = await client.query<{ count: string }>(
-            "SELECT COUNT(*) as count FROM deliveries_bras WHERE recipient = $1 AND massif = $2 AND date = $3",
-            [recipient, bulletin.massif, extractTimestamp(bulletin)]
+            "SELECT COUNT(*) as count FROM deliveries_bras WHERE recipient = $1 AND massif = $2 AND valid_from = $3",
+            [recipient, bulletin.massif, bulletin.valid_from]
         );
         const count = parseInt([...result][0]?.count || '0', 10);
         return count > 0;
@@ -30,8 +26,8 @@ export namespace Deliveries {
 
         const client = getClient();
         const result = await client.query<{ recipient: string }>(
-            "SELECT recipient FROM deliveries_bras WHERE recipient = ANY($1) AND massif = $2 AND date = $3",
-            [recipients, bulletin.massif, extractTimestamp(bulletin)]
+            "SELECT recipient FROM deliveries_bras WHERE recipient = ANY($1) AND massif = $2 AND valid_from = $3",
+            [recipients, bulletin.massif, bulletin.valid_from]
         );
 
         const deliveredSet = new Set([...result].map(row => row.recipient));
@@ -41,8 +37,8 @@ export namespace Deliveries {
     export async function recordDelivery(recipient: string, bulletin: PartialBulletin): Promise<void> {
         const client = getClient();
         await client.query(
-            "INSERT INTO deliveries_bras (recipient, massif, date, timestamp) VALUES ($1, $2, $3, NOW())",
-            [recipient, bulletin.massif, extractTimestamp(bulletin)]
+            "INSERT INTO deliveries_bras (recipient, massif, valid_from, delivery_timestamp) VALUES ($1, $2, $3, NOW())",
+            [recipient, bulletin.massif, bulletin.valid_from, new Date()]
         );
     }
 }

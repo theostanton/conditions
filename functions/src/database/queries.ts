@@ -93,7 +93,8 @@ export namespace Database {
 
         await client.query(
             `insert into bras (massif, filename, public_url, valid_from, valid_to)
-             values ${placeholders.join(', ')}`,
+            values
+            ${placeholders.join(', ')}`,
             values
         );
         console.log(`Batch inserted ${bulletins.length} bulletins into database`);

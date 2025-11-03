@@ -2,6 +2,7 @@ import {Bot, Context} from "grammy";
 import {Menu} from "@grammyjs/menu";
 import {MassifCache} from "@cache/MassifCache";
 import {ActionBulletins} from "@bot/actions/bulletins";
+import {Analytics} from "@analytics/Analytics";
 
 export namespace CommandGet {
 
@@ -14,6 +15,9 @@ export namespace CommandGet {
             for (const massif of massifs) {
                 range.text(massif.name, async (context) => {
                     await ActionBulletins.send(context, massif, true);
+
+                    // Track bulletin request
+                    await Analytics.send(`${context.from?.id} got ${massif.name}`);
                 }).row();
             }
         });

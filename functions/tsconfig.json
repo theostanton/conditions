@@ -19,7 +19,8 @@
       "@cron/*": ["cron/*"],
       "@cache/*": ["cache/*"],
       "@app-types": ["types/index"],
-      "@utils/*": ["utils/*"]
+      "@utils/*": ["utils/*"],
+      "@analytics/*": ["analytics/*"]
     }
   },
   "compileOnSave": true,

@@ -25,3 +25,8 @@ variable "meteofrance_token" {
   type        = string
   sensitive   = true
 }
+
+variable "admin_chat_id" {
+  description = "Telegram Admin number"
+  type        = string
+}

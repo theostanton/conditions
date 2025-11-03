@@ -32,6 +32,7 @@ resource "google_cloudfunctions2_function" "cron" {
       PGPASSWORD         = var.db_password
       METEOFRANCE_TOKEN  = var.meteofrance_token
       GOOGLE_PROJECT_ID  = local.project_id
+      ADMIN_CHAT_ID      = var.admin_chat_id
     }
   }
 
@@ -69,12 +70,12 @@ resource "google_service_account" "scheduler_sa" {
 
 # Cloud Scheduler job to trigger the cron function
 resource "google_cloud_scheduler_job" "cron_trigger" {
-  depends_on  = [google_project_service.cloud_scheduler_api]
-  name        = "cron-job-trigger"
-  schedule    = "0 * * * *" # Hourly
-  time_zone   = "UTC"
-  region      = local.region
-  project     = local.project_id
+  depends_on = [google_project_service.cloud_scheduler_api]
+  name       = "cron-job-trigger"
+  schedule   = "0 * * * *" # Hourly
+  time_zone  = "UTC"
+  region     = local.region
+  project    = local.project_id
 
   http_target {
     http_method = "POST"

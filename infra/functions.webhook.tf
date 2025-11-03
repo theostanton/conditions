@@ -27,6 +27,7 @@ resource "google_cloudfunctions2_function" "webhook" {
       PGPASSWORD         = var.db_password
       METEOFRANCE_TOKEN  = var.meteofrance_token
       GOOGLE_PROJECT_ID  = local.project_id
+      ADMIN_CHAT_ID      = var.admin_chat_id
     }
   }
 

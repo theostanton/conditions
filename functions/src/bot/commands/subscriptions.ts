@@ -3,6 +3,7 @@ import {Menu} from "@grammyjs/menu";
 import {MassifCache} from "@cache/MassifCache";
 import {ActionSubscriptions} from "@bot/actions/subscriptions";
 import {Subscriptions} from "@database/models/Subscriptions";
+import {Analytics} from "@analytics/Analytics";
 
 export namespace CommandSubscriptions {
 

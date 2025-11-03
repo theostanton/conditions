@@ -3,6 +3,7 @@ import {Subscriptions} from "@database/models/Subscriptions";
 import {Massif} from "@app-types";
 import {ActionBulletins} from "@bot/actions/bulletins";
 import {Massifs} from "@database/models/Massifs";
+import {Analytics} from "@analytics/Analytics";
 
 export namespace ActionSubscriptions {
 
@@ -15,14 +16,15 @@ export namespace ActionSubscriptions {
 
             const recipientId = context.from.id;
             const isSubscribed = await Subscriptions.isSubscribed(recipientId, massif.code);
-
             if (isSubscribed) {
                 // Unsubscribe
                 await Subscriptions.unsubscribe(recipientId, massif);
+                await Analytics.send(`${context.from?.id} unsubscribed from ${massif.name}d`);
             } else {
                 // Subscribe
                 await Subscriptions.subscribe(recipientId, massif);
                 await ActionBulletins.send(context, massif, false);
+                await Analytics.send(`${context.from?.id} subscribed to ${massif.name}d`);
             }
 
             // Update the menu to show the new subscription status

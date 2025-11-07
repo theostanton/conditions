@@ -7,7 +7,7 @@ import {BulletinService} from "@cron/services/bulletinService";
 export namespace ActionBulletins {
 
     async function fetchAndStoreBulletin(massif: Massif, context: Context): Promise<Bulletin | undefined> {
-        await context.reply(`Fetching bulletin for ${massif.name}...`);
+        const message = await context.reply(`Fetching latest bulletin for ${massif.name}...`);
 
         try {
             const metadata = await BulletinService.fetchBulletinMetadata(massif.code);
@@ -55,7 +55,7 @@ export namespace ActionBulletins {
         try {
             let bulletin = await Bulletins.getLatest(massif.code);
 
-            if (bulletin === undefined) {
+            if (bulletin === undefined || bulletin.valid_to < new Date()) {
                 bulletin = await fetchAndStoreBulletin(massif, context);
                 if (!bulletin) {
                     return;

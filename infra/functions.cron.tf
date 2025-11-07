@@ -68,10 +68,9 @@ resource "google_service_account" "scheduler_sa" {
   project      = local.project_id
 }
 
-# Cloud Scheduler job to trigger the cron function
-resource "google_cloud_scheduler_job" "cron_trigger" {
+resource "google_cloud_scheduler_job" "cron_trigger_hourly" {
   depends_on = [google_project_service.cloud_scheduler_api]
-  name       = "cron-job-trigger"
+  name       = "cron-job-trigger-hourly"
   schedule   = "0 * * * *" # Hourly
   time_zone  = "UTC"
   region     = local.region
@@ -90,10 +89,23 @@ resource "google_cloud_scheduler_job" "cron_trigger" {
   }
 }
 
-output "cron_function_url" {
-  value = google_cloudfunctions2_function.cron.service_config[0].uri
-}
+resource "google_cloud_scheduler_job" "cron_trigger_5_minutely" {
+  depends_on = [google_project_service.cloud_scheduler_api]
+  name       = "cron-job-trigger-5min"
+  schedule   = "5-55/5 15-17 * * *" # Every 5 minutes between 15:05 and 17:55, skipping 16:00 and 17:00
+  time_zone  = "UTC"
+  region     = local.region
+  project    = local.project_id
 
-output "cron_schedule" {
-  value = google_cloud_scheduler_job.cron_trigger.schedule
+  http_target {
+    http_method = "POST"
+    uri         = google_cloudfunctions2_function.cron.service_config[0].uri
+    oidc_token {
+      service_account_email = google_service_account.scheduler_sa.email
+    }
+  }
+
+  retry_config {
+    retry_count = 1
+  }
 }

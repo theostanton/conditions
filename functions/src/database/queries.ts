@@ -8,7 +8,7 @@ type SubscriptionRow = {
 
 export namespace Database {
     export async function getMassifsWithSubscribers(): Promise<number[]> {
-        const client = getClient();
+        const client = await getClient();
         const result = await client.query<Pick<BulletinInfos, "massif">>(
             "select concat(massif) as massif from bra_subscriptions group by massif"
         );
@@ -16,7 +16,7 @@ export namespace Database {
     }
 
     export async function getTotalSubscribers(): Promise<number> {
-        const client = getClient();
+        const client = await getClient();
         const result = await client.query<{ count: number }>(
             "select count(distinct(recipient)) as count from bra_subscriptions"
         );
@@ -24,7 +24,7 @@ export namespace Database {
     }
 
     export async function getLatestStoredBulletins(): Promise<BulletinInfos[]> {
-        const client = getClient();
+        const client = await getClient();
         const result = await client.query<BulletinInfos>(
             "select massif, max(valid_from) as valid_from, max(valid_to) as valid_to from bras group by massif"
         );
@@ -38,7 +38,7 @@ export namespace Database {
         validFrom: Date,
         validTo: Date
     ): Promise<void> {
-        const client = getClient();
+        const client = await getClient();
         await client.query(
             "insert into bras (massif, filename, public_url, valid_from, valid_to) values ($1, $2, $3, $4, $5)",
             [massif, filename, publicUrl, validFrom, validTo]
@@ -47,7 +47,7 @@ export namespace Database {
     }
 
     export async function getMassifName(massifCode: number): Promise<string> {
-        const client = getClient();
+        const client = await getClient();
         const result = await client.query<{ name: string }>(
             "select name from massifs where code=$1",
             [massifCode]
@@ -59,7 +59,7 @@ export namespace Database {
         if (massifCodes.length === 0) {
             return [];
         }
-        const client = getClient();
+        const client = await getClient();
         const placeholders = massifCodes.map((_, i) => `$${i + 1}`).join(',');
         const result = await client.query<{ code: number; name: string }>(
             `select code, name from massifs where code in (${placeholders})`,
@@ -81,7 +81,7 @@ export namespace Database {
             return;
         }
 
-        const client = getClient();
+        const client = await getClient();
         const values: any[] = [];
         const placeholders: string[] = [];
 
@@ -101,7 +101,7 @@ export namespace Database {
     }
 
     export async function getSubscriptionsByMassif(): Promise<SubscriptionRow[]> {
-        const client = getClient();
+        const client = await getClient();
         const result = await client.query<SubscriptionRow>(
             `select s.massif as massif, string_agg(s.recipient, ',') as recipients
              from bra_subscriptions as s

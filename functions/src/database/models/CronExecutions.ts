@@ -15,7 +15,7 @@ export interface CronExecution {
 
 export namespace CronExecutions {
     export async function insert(data: CronExecution): Promise<void> {
-        const client = getClient();
+        const client = await getClient();
         await client.query(
             `insert into cron_executions
              (status, subscriber_count, massifs_with_subscribers_count, updated_bulletins_count,

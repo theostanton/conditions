@@ -7,9 +7,12 @@ resource "google_sql_database_instance" "instance" {
     availability_type = "ZONAL"
     ip_configuration {
       ipv4_enabled = true
-      authorized_networks {
-        name  = "Chamonix"
-        value = "79.88.5.26/32"
+      dynamic "authorized_networks" {
+        for_each = nonsensitive(var.db_authorized_networks)
+        content {
+          name  = authorized_networks.key
+          value = authorized_networks.value
+        }
       }
     }
     tier = "db-f1-micro"

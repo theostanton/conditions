@@ -6,7 +6,7 @@ export namespace Deliveries {
     type PartialBulletin = Pick<Bulletin, 'massif' | 'valid_from'>
 
     export async function hasBeenDelivered(recipient: string, bulletin: PartialBulletin): Promise<boolean> {
-        const client = getClient();
+        const client = await getClient();
         const result = await client.query<{ count: string }>(
             "SELECT COUNT(*) as count FROM deliveries_bras WHERE recipient = $1 AND massif = $2 AND valid_from = $3",
             [recipient, bulletin.massif, bulletin.valid_from]
@@ -24,7 +24,7 @@ export namespace Deliveries {
             return [];
         }
 
-        const client = getClient();
+        const client = await getClient();
         const result = await client.query<{ recipient: string }>(
             "SELECT recipient FROM deliveries_bras WHERE recipient = ANY($1) AND massif = $2 AND valid_from = $3",
             [recipients, bulletin.massif, bulletin.valid_from]
@@ -35,7 +35,7 @@ export namespace Deliveries {
     }
 
     export async function recordDelivery(recipient: string, bulletin: PartialBulletin): Promise<void> {
-        const client = getClient();
+        const client = await getClient();
         await client.query(
             "INSERT INTO deliveries_bras (recipient, massif, valid_from, delivery_timestamp) VALUES ($1, $2, $3, NOW())",
             [recipient, bulletin.massif, bulletin.valid_from, new Date()]

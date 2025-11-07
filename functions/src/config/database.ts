@@ -1,7 +1,7 @@
 import {Client, connect} from "ts-postgres";
 import {PGHOST, PGDATABASE, PGUSER, PGPASSWORD} from "./envs";
 
-let client: Client;
+let client: Client | null = null;
 
 export async function setupDatabase() {
     console.log('setupDatabase PGHOST ' + PGHOST + ', database ' + PGDATABASE);
@@ -13,6 +13,23 @@ export async function setupDatabase() {
     });
 }
 
-export function getClient(): Client {
+async function ensureConnection(): Promise<Client> {
+    // Check if client exists and connection is still open
+    if (client && !client.closed) {
+        return client;
+    }
+
+    // Connection is closed or doesn't exist, reconnect
+    console.log('Database connection closed or not established, reconnecting...');
+    await setupDatabase();
+
+    if (!client) {
+        throw new Error('Failed to establish database connection');
+    }
+
     return client;
+}
+
+export async function getClient(): Promise<Client> {
+    return ensureConnection();
 }

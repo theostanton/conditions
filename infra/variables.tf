@@ -30,3 +30,9 @@ variable "admin_chat_id" {
   description = "Telegram Admin number"
   type        = string
 }
+
+variable "db_authorized_networks" {
+  description = "Map of authorized networks for database access (key is network name, value is CIDR)"
+  type        = map(string)
+  sensitive   = true
+}

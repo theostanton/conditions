@@ -1,4 +1,4 @@
-import {Bot} from "grammy";
+import {Bot, Keyboard} from "grammy";
 import {CommandGet} from './commands/get';
 import {CommandSubscriptions} from './commands/subscriptions';
 import {MassifCache} from '@cache/MassifCache';
@@ -27,8 +27,15 @@ export async function createBot(): Promise<Bot> {
             return;
         }
 
+        // Create persistent keyboard with quick access buttons
+        const keyboard = new Keyboard()
+            .text("/get")
+            .text("/subscriptions")
+            .resized();
+
         await ctx.reply(
-            "👇Hit the Menu button to get started"
+            "Use the buttons below for quick access:",
+            { reply_markup: keyboard }
         );
     });
 

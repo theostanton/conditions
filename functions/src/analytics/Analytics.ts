@@ -2,7 +2,7 @@ import {Bot} from "grammy";
 import {ADMIN_CHAT_ID, TELEGRAM_BOT_TOKEN} from "@config/envs";
 
 class AnalyticsService {
-    private ENABLED = false
+    private ENABLED = true
     private bot: Bot;
 
     constructor() {

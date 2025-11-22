@@ -22,6 +22,7 @@ resource "google_cloudfunctions2_function" "webhook" {
     max_instance_count = 10 # Limit concurrent instances to prevent abuse/unexpected costs
     environment_variables = {
       TELEGRAM_BOT_TOKEN = var.telegram_bot_token
+      ANALYTICS_BOT_TOKEN = var.analytics_bot_token
       PGHOST             = "/cloudsql/${google_sql_database_instance.instance.connection_name}"
       PGDATABASE         = var.db_database
       PGUSER             = local.db_user

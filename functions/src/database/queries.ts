@@ -120,7 +120,7 @@ export namespace Database {
         const client = await getClient();
         const placeholders = recipients.map((_, i) => `$${i + 2}`).join(',');
         const result = await client.query(
-            `SELECT recipient, massif, bulletin, snow_report, fresh_snow, weather, last_7_days
+            `SELECT recipient, massif, bulletin, snow_report, fresh_snow, weather, last_7_days, rose_pentes, montagne_risques
              FROM bra_subscriptions
              WHERE massif = $1 AND recipient::text IN (${placeholders})`,
             [massif, ...recipients]
@@ -134,6 +134,8 @@ export namespace Database {
             fresh_snow: row.get('fresh_snow') as boolean,
             weather: row.get('weather') as boolean,
             last_7_days: row.get('last_7_days') as boolean,
+            rose_pentes: row.get('rose_pentes') as boolean,
+            montagne_risques: row.get('montagne_risques') as boolean,
         }));
     }
 }

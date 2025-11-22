@@ -26,6 +26,7 @@ resource "google_cloudfunctions2_function" "cron" {
     max_instance_count = 1       # Only one cron execution should run at a time
     environment_variables = {
       TELEGRAM_BOT_TOKEN = var.telegram_bot_token
+      ANALYTICS_BOT_TOKEN = var.analytics_bot_token
       PGHOST             = "/cloudsql/${google_sql_database_instance.instance.connection_name}"
       PGDATABASE         = var.db_database
       PGUSER             = local.db_user

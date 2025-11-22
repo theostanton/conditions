@@ -4,8 +4,8 @@ import {Database} from "@database/queries";
 import {Deliveries} from "@database/models/Deliveries";
 import {ArrayUtils} from "@utils/array";
 import {AsyncUtils} from "@utils/async";
-import {ImageService} from "./imageService";
-import {InputMediaBuilder} from "grammy";
+import {ContentDeliveryService} from "@services/contentDeliveryService";
+import {MassifCache} from "@cache/MassifCache";
 
 export namespace NotificationService {
 
@@ -48,13 +48,21 @@ export namespace NotificationService {
     export async function send(destinations: BulletinDestination[]): Promise<number> {
         // Flatten all messages to send with their subscription details
         const messages = destinations.flatMap(destination => {
+            // Build bulletin object once for this destination
+            const bulletin: Bulletin = {
+                massif: destination.massif,
+                filename: destination.filename,
+                public_url: destination.public_url,
+                valid_from: destination.valid_from,
+                valid_to: destination.valid_to
+            };
+
             return destination.recipients.map(recipient => {
                 const subscription = destination.subscriptions.find(s => s.recipient.toString() === recipient);
                 return {
                     recipient,
-                    publicUrl: destination.public_url,
+                    bulletin,
                     massif: destination.massif,
-                    validFrom: destination.valid_from,
                     subscription: subscription
                 };
             });
@@ -75,7 +83,7 @@ export namespace NotificationService {
             console.log(`Sending batch ${i + 1}/${batches.length} (${batch.length} messages)`);
 
             const results = await Promise.allSettled(
-                batch.map(msg => sendBulletinWithImages(msg.recipient, msg.publicUrl, msg.massif, msg.subscription))
+                batch.map(msg => sendBulletinWithContent(msg))
             );
 
             // Process results and track deliveries
@@ -87,10 +95,7 @@ export namespace NotificationService {
                     totalSent++;
                     // Record successful delivery
                     try {
-                        await Deliveries.recordDelivery(msg.recipient, {
-                            massif: msg.massif,
-                            valid_from: msg.validFrom
-                        });
+                        await Deliveries.recordDelivery(msg.recipient, msg.bulletin);
                     } catch (error) {
                         console.error(`Failed to record delivery for ${msg.recipient}:`, error);
                     }
@@ -110,39 +115,20 @@ export namespace NotificationService {
         return totalSent;
     }
 
-    async function sendBulletinWithImages(
+    async function sendBulletinWithContent(message: {
         recipient: string,
-        bulletinUrl: string,
-        massifCode: number,
+        bulletin: Bulletin,
+        massif: number,
         subscription?: Subscription
-    ): Promise<void> {
-        // If no subscription data or only bulletin is enabled, send just the PDF
-        if (!subscription || !hasAnyImageContentType(subscription)) {
-            await bot.api.sendDocument(recipient, bulletinUrl);
-            return;
+    }): Promise<void> {
+        const massif = MassifCache.findByCode(message.massif);
+        if (!massif) {
+            throw new Error(`Massif ${message.massif} not found`);
         }
 
-        // Get image URLs based on enabled content types
-        const imageUrls = ImageService.buildImageUrls(massifCode, subscription);
+        // Use subscription content types or default to bulletin only
+        const contentTypes = message.subscription || { bulletin: true };
 
-        // If no images to send, just send the bulletin
-        if (imageUrls.length === 0) {
-            await bot.api.sendDocument(recipient, bulletinUrl);
-            return;
-        }
-
-        // Send bulletin first
-        await bot.api.sendDocument(recipient, bulletinUrl);
-
-        // Then send images as a media group
-        const mediaGroup = imageUrls.map(url => InputMediaBuilder.photo(url));
-        await bot.api.sendMediaGroup(recipient, mediaGroup);
-    }
-
-    function hasAnyImageContentType(subscription: Subscription): boolean {
-        return subscription.snow_report ||
-               subscription.fresh_snow ||
-               subscription.weather ||
-               subscription.last_7_days;
+        await ContentDeliveryService.sendWithBotApi(bot, message.recipient, message.bulletin, massif, contentTypes);
     }
 }

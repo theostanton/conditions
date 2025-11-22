@@ -3,7 +3,13 @@ locals {
 }
 
 variable "telegram_bot_token" {
-  description = "Telegram Bot API token"
+  description = "Conditions Bot API token"
+  type        = string
+  sensitive   = true
+}
+
+variable "analytics_bot_token" {
+  description = "Analytics Bot API token"
   type        = string
   sensitive   = true
 }

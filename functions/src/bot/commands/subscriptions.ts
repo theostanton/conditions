@@ -5,6 +5,7 @@ import {ActionSubscriptions} from "@bot/actions/subscriptions";
 import {Subscriptions} from "@database/models/Subscriptions";
 import {Analytics} from "@analytics/Analytics";
 import {Massif} from "@app-types";
+import {CONTENT_TYPE_CONFIGS} from "@constants/contentTypes";
 
 export namespace CommandSubscriptions {
 
@@ -16,22 +17,13 @@ export namespace CommandSubscriptions {
 
             const contentTypes = ActionSubscriptions.getContentTypes(ctx.from.id, massif);
 
-            // Content type options
-            const types: Array<{key: keyof typeof contentTypes, label: string}> = [
-                {key: 'bulletin', label: 'Bulletin'},
-                {key: 'snow_report', label: 'Snow Report'},
-                {key: 'fresh_snow', label: 'Fresh Snow'},
-                {key: 'weather', label: 'Weather'},
-                {key: 'last_7_days', label: 'Last 7 Days'},
-            ];
-
-            for (const type of types) {
-                const isChecked = contentTypes[type.key] || false;
-                const label = isChecked ? `☑️ ${type.label}` : `◻ ${type.label}`;
+            for (const config of CONTENT_TYPE_CONFIGS) {
+                const isChecked = contentTypes[config.key] || false;
+                const label = isChecked ? `☑️ ${config.emoji} ${config.label}` : `◻ ${config.emoji} ${config.label}`;
 
                 range.text(label, async (context) => {
                     if (!context.from?.id) return;
-                    ActionSubscriptions.toggleContentType(context.from.id, massif, type.key);
+                    ActionSubscriptions.toggleContentType(context.from.id, massif, config.key);
                     await context.menu.update({immediate: true}).catch(err =>
                         console.error('Error updating menu:', err)
                     );

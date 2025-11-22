@@ -18,9 +18,11 @@
       "@bot/*": ["bot/*"],
       "@cron/*": ["cron/*"],
       "@cache/*": ["cache/*"],
+      "@services/*": ["services/*"],
       "@app-types": ["types/index"],
       "@utils/*": ["utils/*"],
-      "@analytics/*": ["analytics/*"]
+      "@analytics/*": ["analytics/*"],
+      "@constants/*": ["constants/*"]
     }
   },
   "compileOnSave": true,

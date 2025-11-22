@@ -1,4 +1,4 @@
-import {BulletinService} from "./services/bulletinService";
+import {BulletinService} from "@services/bulletinService";
 import {NotificationService} from "./services/notificationService";
 import {setupDatabase, closeConnection} from "@config/database";
 import {Database} from "@database/queries";

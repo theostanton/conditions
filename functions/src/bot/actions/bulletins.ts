@@ -1,8 +1,9 @@
 import {Context} from "grammy";
 import {Bulletins} from "@database/models/Bulletins";
 import {Deliveries} from "@database/models/Deliveries";
-import {Bulletin, Massif} from "@app-types";
-import {BulletinService} from "@cron/services/bulletinService";
+import {Bulletin, ContentTypes, Massif} from "@app-types";
+import {BulletinService} from "@services/bulletinService";
+import {ContentDeliveryService} from "@services/contentDeliveryService";
 
 export namespace ActionBulletins {
 
@@ -41,18 +42,15 @@ export namespace ActionBulletins {
         context: Context,
         massif: Massif,
         bulletin: Bulletin,
-        recipient: string
+        recipient: string,
+        contentTypes: ContentTypes
     ): Promise<void> {
-        await context.replyWithDocument(bulletin.public_url);
-
-        if (bulletin.valid_to < new Date()) {
-            await context.reply(`Latest bulletin for ${massif.name} is outdated`);
-        }
-
+        // Use centralized content delivery with specified content types
+        await ContentDeliveryService.sendWithContext(context, bulletin, massif, contentTypes);
         await Deliveries.recordDelivery(recipient, bulletin);
     }
 
-    export async function send(context: Context, massif: Massif, force: boolean): Promise<void> {
+    export async function send(context: Context, massif: Massif, force: boolean, contentTypes: ContentTypes): Promise<void> {
         try {
             let bulletin = await Bulletins.getLatest(massif.code);
 
@@ -76,7 +74,7 @@ export namespace ActionBulletins {
                 }
             }
 
-            await deliverBulletin(context, massif, bulletin, recipient);
+            await deliverBulletin(context, massif, bulletin, recipient, contentTypes);
 
         } catch (error) {
             console.error('Error sending bulletin:', error);

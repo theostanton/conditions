@@ -27,10 +27,12 @@ export type BulletinDestination = {
 
 export type ContentTypes = {
     bulletin: boolean,
+    weather: boolean,
     snow_report: boolean,
     fresh_snow: boolean,
-    weather: boolean,
     last_7_days: boolean,
+    rose_pentes: boolean,
+    montagne_risques: boolean,
 }
 
 export type Subscription = {

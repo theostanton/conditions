@@ -2,16 +2,42 @@ import {Context} from "grammy";
 import {MenuFlavor} from "@grammyjs/menu";
 import {Subscriptions} from "@database/models/Subscriptions";
 import {Massif, ContentTypes} from "@app-types";
-import {ActionBulletins} from "@bot/actions/bulletins";
 import {Analytics} from "@analytics/Analytics";
-import {ImageService} from "@cron/services/imageService";
-import {InputMediaBuilder} from "grammy";
+import {Bulletins} from "@database/models/Bulletins";
+import {BulletinService} from "@services/bulletinService";
+import {ContentDeliveryService} from "@services/contentDeliveryService";
 
 // Store temporary content type selections for each user/massif combination
 const contentTypeSelections = new Map<string, Partial<ContentTypes>>();
 
 function getSelectionKey(userId: number, massifCode: number): string {
     return `${userId}:${massifCode}`;
+}
+
+async function sendWelcomeContent(context: Context, massif: Massif, contentTypes: Partial<ContentTypes>): Promise<void> {
+    // Get latest bulletin
+    let bulletin = await Bulletins.getLatest(massif.code);
+
+    // If no bulletin or outdated, fetch new one
+    if (!bulletin || bulletin.valid_to < new Date()) {
+        const metadata = await BulletinService.fetchBulletinMetadata(massif.code);
+        if (metadata) {
+            const bulletins = await BulletinService.fetchAndStoreBulletins([{
+                massif: massif.code,
+                valid_from: metadata.validFrom,
+                valid_to: metadata.validTo,
+                risk_level: metadata.riskLevel
+            }]);
+            if (bulletins.length > 0) {
+                bulletin = bulletins[0];
+            }
+        }
+    }
+
+    // Send bulletin and images if we have one
+    if (bulletin) {
+        await ContentDeliveryService.sendWithContext(context, bulletin, massif, contentTypes);
+    }
 }
 
 export namespace ActionSubscriptions {
@@ -62,21 +88,10 @@ export namespace ActionSubscriptions {
                 );
             }
 
-            // Send bulletin asynchronously if bulletin is enabled
-            if (contentTypes.bulletin) {
-                ActionBulletins.send(context, massif, false).catch(err =>
-                    console.error('Error sending bulletin:', err)
-                );
-            }
-
-            // Send images for any enabled content types (excluding bulletin which is a PDF)
-            const imageUrls = ImageService.buildImageUrls(massif.code, contentTypes);
-            if (imageUrls.length > 0) {
-                const mediaGroup = imageUrls.map(url => InputMediaBuilder.photo(url));
-                context.replyWithMediaGroup(mediaGroup).catch(err =>
-                    console.error('Error sending images:', err)
-                );
-            }
+            // Send bulletin and images based on selected content types (asynchronously)
+            sendWelcomeContent(context, massif, contentTypes).catch(err =>
+                console.error('Error sending welcome content:', err)
+            );
 
             // Analytics - non-blocking
             Analytics.send(`${context.from?.id} subscribed to ${massif.name} with content types: ${JSON.stringify(contentTypes)}`).catch(err =>

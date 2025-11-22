@@ -119,6 +119,7 @@ export namespace CommandSubscriptions {
                 await ctx.reply("Unable to identify user");
                 return;
             }
+            await ctx.reply("Choose a mountain range to manage your subscriptions", {reply_markup: mountainMenu});
         };
     }
 

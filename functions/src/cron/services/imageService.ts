@@ -19,7 +19,7 @@ export namespace ImageService {
     /**
      * Get image types to fetch based on enabled content types
      */
-    export function getImageTypesFromContentTypes(contentTypes: ContentTypes): ImageType[] {
+    export function getImageTypesFromContentTypes(contentTypes: Partial<ContentTypes>): ImageType[] {
         const imageTypes: ImageType[] = [];
 
         if (contentTypes.snow_report) {
@@ -49,7 +49,7 @@ export namespace ImageService {
     /**
      * Build URLs for all requested image types
      */
-    export function buildImageUrls(massifCode: number, contentTypes: ContentTypes): string[] {
+    export function buildImageUrls(massifCode: number, contentTypes: Partial<ContentTypes>): string[] {
         const imageTypes = getImageTypesFromContentTypes(contentTypes);
         return imageTypes.map(type => buildImageUrl(massifCode, type));
     }

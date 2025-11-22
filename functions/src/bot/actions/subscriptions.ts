@@ -4,6 +4,8 @@ import {Subscriptions} from "@database/models/Subscriptions";
 import {Massif, ContentTypes} from "@app-types";
 import {ActionBulletins} from "@bot/actions/bulletins";
 import {Analytics} from "@analytics/Analytics";
+import {ImageService} from "@cron/services/imageService";
+import {InputMediaBuilder} from "grammy";
 
 // Store temporary content type selections for each user/massif combination
 const contentTypeSelections = new Map<string, Partial<ContentTypes>>();
@@ -64,6 +66,15 @@ export namespace ActionSubscriptions {
             if (contentTypes.bulletin) {
                 ActionBulletins.send(context, massif, false).catch(err =>
                     console.error('Error sending bulletin:', err)
+                );
+            }
+
+            // Send images for any enabled content types (excluding bulletin which is a PDF)
+            const imageUrls = ImageService.buildImageUrls(massif.code, contentTypes);
+            if (imageUrls.length > 0) {
+                const mediaGroup = imageUrls.map(url => InputMediaBuilder.photo(url));
+                context.replyWithMediaGroup(mediaGroup).catch(err =>
+                    console.error('Error sending images:', err)
                 );
             }
 

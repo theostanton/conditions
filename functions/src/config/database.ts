@@ -33,3 +33,11 @@ async function ensureConnection(): Promise<Client> {
 export async function getClient(): Promise<Client> {
     return ensureConnection();
 }
+
+export async function closeConnection(): Promise<void> {
+    if (client && !client.closed) {
+        console.log('Closing database connection...');
+        await client.end();
+        client = null;
+    }
+}

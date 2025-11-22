@@ -21,7 +21,11 @@ export namespace BulletinService {
         massifsWithNoUpdate: number[]
     }
 
-    export async function fetchBulletinMetadata(massifCode: number): Promise<{validFrom: Date, validTo: Date} | undefined> {
+    export async function fetchBulletinMetadata(massifCode: number): Promise<{
+        validFrom: Date,
+        validTo: Date,
+        riskLevel?: number
+    } | undefined> {
         const response = await axios.get(
             `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${massifCode}&format=xml`,
             {headers: meteoFranceHeaders, timeout: 10000}
@@ -34,9 +38,14 @@ export namespace BulletinService {
             return undefined;
         }
 
+        // Extract RISQUEMAXI from the XML
+        const matchRiskLevel = response.data.match(/RISQUEMAXI="(\d+)"/);
+        const riskLevel = matchRiskLevel ? parseInt(matchRiskLevel[1], 10) : undefined;
+
         return {
             validFrom: new Date(matchFrom[1]),
-            validTo: new Date(matchUntil[1])
+            validTo: new Date(matchUntil[1]),
+            riskLevel
         };
     }
 
@@ -79,7 +88,7 @@ export namespace BulletinService {
                 console.log(`No bulletin metadata available for massif=${massif}`);
                 failedMassifs.push(massif);
             } else {
-                const {validFrom, validTo} = metadata;
+                const {validFrom, validTo, riskLevel} = metadata;
                 const storedBulletin = latestStoredBulletins.find(value => value.massif == massif);
 
                 if (storedBulletin == undefined) {
@@ -87,7 +96,8 @@ export namespace BulletinService {
                     bulletinInfosToUpdate.push({
                         massif: massif,
                         valid_from: validFrom,
-                        valid_to: validTo
+                        valid_to: validTo,
+                        risk_level: riskLevel
                     });
                     massifsNew.push(massif);
                 } else if (validFrom > storedBulletin.valid_from) {
@@ -95,7 +105,8 @@ export namespace BulletinService {
                     bulletinInfosToUpdate.push({
                         massif: massif,
                         valid_from: validFrom,
-                        valid_to: validTo
+                        valid_to: validTo,
+                        risk_level: riskLevel
                     });
                     massifsWithUpdate.push(massif);
                 } else {
@@ -108,7 +119,7 @@ export namespace BulletinService {
         return {bulletinInfosToUpdate, massifsNew, failedMassifs, massifsWithUpdate, massifsWithNoUpdate}
     }
 
-    async function  fetchBulletin(massif: number, filename: string): Promise<string | null> {
+    async function fetchBulletin(massif: number, filename: string): Promise<string | null> {
         const resp = await fetch(
             `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${massif}&format=pdf`,
             {headers: meteoFranceHeaders}
@@ -143,7 +154,12 @@ export namespace BulletinService {
 
     async function generateFilename(bulletin: BulletinInfos, massifName: string): Promise<string> {
         const toDateString = formatDateTime(bulletin.valid_from);
-        return `/tmp/${massifName} ${toDateString}.pdf`;
+
+       if (bulletin.risk_level) {
+            return `/tmp/${massifName} ${toDateString} ${bulletin.risk_level}⁄5.pdf`;
+        } else {
+            return `/tmp/${massifName} ${toDateString}.pdf`;
+        }
     }
 
     export async function fetchAndStoreBulletins(newBulletinsToFetch: BulletinInfos[]): Promise<Bulletin[]> {
@@ -194,6 +210,7 @@ export namespace BulletinService {
             publicUrl: string;
             validFrom: Date;
             validTo: Date;
+            riskLevel?: number;
         }> = [];
 
         for (let i = 0; i < results.length; i++) {
@@ -206,7 +223,8 @@ export namespace BulletinService {
                     filename,
                     publicUrl,
                     validFrom: bulletin.valid_from,
-                    validTo: bulletin.valid_to
+                    validTo: bulletin.valid_to,
+                    riskLevel: bulletin.risk_level
                 });
             } else {
                 console.error(`Failed to process bulletin:`, result.reason);

@@ -4,6 +4,7 @@ export type Bulletin = {
     public_url: string,
     valid_from: Date,
     valid_to: Date,
+    risk_level?: number,
 }
 
 export type Massif = {
@@ -12,7 +13,7 @@ export type Massif = {
     mountain?: string
 }
 
-export type BulletinInfos = Pick<Bulletin, "massif" | "valid_from" | "valid_to">
+export type BulletinInfos = Pick<Bulletin, "massif" | "valid_from" | "valid_to" | "risk_level">
 
 export type BulletinDestination = {
     recipients: string[],

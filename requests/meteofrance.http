@@ -12,7 +12,7 @@ User-Agent: axios/1.6.0
 ###
 ### Get BRA (Bulletin d'estimation du Risque d'Avalanche) - XML Format
 ### Example massif IDs: 1=Chablais, 2=Aravis, 3=Mont-Blanc
-GET https://public-api.meteofrance.fr/public/DPBRA/massif/BRA?id-massif=4&format=xml
+GET https://public-api.meteofrance.fr/public/DPBRA/massif/BRA?id-massif=3&format=xml
 Content-Type: application/xml
 apikey: {{meteofrance_api_key}}
 User-Agent: axios/1.6.0
@@ -39,8 +39,38 @@ apikey: {{meteofrance_api_key}}
 User-Agent: axios/1.6.0
 
 ###
-# curl -X 'GET' 'https://public-api.meteofrance.fr/public/DPBRA/v1/massif/image/montagne-enneigement?id-massif=66' -H 'accept: */*' -H 'Authorization: Bearer <your_oauth2_token_here>"
-GET https://public-api.meteofrance.fr/public/DPBRA/v1/massif/image/apercu-meteo?id-massif=2
+### montagne-risques
+GET https://public-api.meteofrance.fr/public/DPBRA/v1/massif/image/montagne-risques?id-massif=3
+apikey: {{meteofrance_api_key}}
+User-Agent: axios/1.6.0
+
+###
+### Weather overview image (apercu-meteo)
+GET https://public-api.meteofrance.fr/public/DPBRA/v1/massif/image/apercu-meteo?id-massif=3
+apikey: {{meteofrance_api_key}}
+User-Agent: axios/1.6.0
+
+###
+### Rose pentes
+GET https://public-api.meteofrance.fr/public/DPBRA/v1/massif/image/rose-pentes?id-massif=3
+apikey: {{meteofrance_api_key}}
+User-Agent: axios/1.6.0
+
+###
+### montagne-enneigement
+GET https://public-api.meteofrance.fr/public/DPBRA/v1/massif/image/montagne-enneigement?id-massif=3
+apikey: {{meteofrance_api_key}}
+User-Agent: axios/1.6.0
+
+###
+### graphe-neige-fraiche
+GET https://public-api.meteofrance.fr/public/DPBRA/v1/massif/image/graphe-neige-fraiche?id-massif=3
+apikey: {{meteofrance_api_key}}
+User-Agent: axios/1.6.0
+
+###
+### sept-derniers-jours
+GET https://public-api.meteofrance.fr/public/DPBRA/v1/massif/image/sept-derniers-jours?id-massif=3
 apikey: {{meteofrance_api_key}}
 User-Agent: axios/1.6.0
 

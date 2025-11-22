@@ -36,12 +36,13 @@ export namespace Database {
         filename: string,
         publicUrl: string,
         validFrom: Date,
-        validTo: Date
+        validTo: Date,
+        riskLevel?: number
     ): Promise<void> {
         const client = await getClient();
         await client.query(
-            "insert into bras (massif, filename, public_url, valid_from, valid_to) values ($1, $2, $3, $4, $5)",
-            [massif, filename, publicUrl, validFrom, validTo]
+            "insert into bras (massif, filename, public_url, valid_from, valid_to, risk_level) values ($1, $2, $3, $4, $5, $6)",
+            [massif, filename, publicUrl, validFrom, validTo, riskLevel]
         );
         console.log(`Inserted into database`);
     }
@@ -75,6 +76,7 @@ export namespace Database {
             publicUrl: string;
             validFrom: Date;
             validTo: Date;
+            riskLevel?: number;
         }>
     ): Promise<void> {
         if (bulletins.length === 0) {
@@ -86,13 +88,13 @@ export namespace Database {
         const placeholders: string[] = [];
 
         bulletins.forEach((b, i) => {
-            const base = i * 5;
-            placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
-            values.push(b.massif, b.filename, b.publicUrl, b.validFrom, b.validTo);
+            const base = i * 6;
+            placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`);
+            values.push(b.massif, b.filename, b.publicUrl, b.validFrom, b.validTo, b.riskLevel);
         });
 
         await client.query(
-            `insert into bras (massif, filename, public_url, valid_from, valid_to)
+            `insert into bras (massif, filename, public_url, valid_from, valid_to, risk_level)
             values
             ${placeholders.join(', ')}`,
             values

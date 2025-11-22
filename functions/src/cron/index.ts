@@ -1,6 +1,6 @@
 import {BulletinService} from "./services/bulletinService";
 import {NotificationService} from "./services/notificationService";
-import {setupDatabase} from "@config/database";
+import {setupDatabase, closeConnection} from "@config/database";
 import {Database} from "@database/queries";
 import {CronExecutions, type CronExecution} from "@database/models/CronExecutions";
 
@@ -71,6 +71,9 @@ export default async function () {
         } catch (dbError) {
             console.error('Failed to insert cron execution record:', dbError);
         }
+
+        // Close the database connection to prevent connection leaks
+        await closeConnection();
     }
 
     return {status: execution.status, summary: execution.summary};

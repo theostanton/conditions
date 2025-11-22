@@ -20,7 +20,8 @@ export namespace ActionBulletins {
             const bulletins = await BulletinService.fetchAndStoreBulletins([{
                 massif: massif.code,
                 valid_from: metadata.validFrom,
-                valid_to: metadata.validTo
+                valid_to: metadata.validTo,
+                risk_level: metadata.riskLevel
             }]);
 
             if (bulletins.length === 0) {

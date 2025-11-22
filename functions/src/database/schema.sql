@@ -25,7 +25,8 @@ create table bras
     filename   text        not null,
     valid_to   date        not null,
     valid_from   date        not null,
-    public_url text        not null
+    public_url text        not null,
+    risk_level integer
 );
 
 create table deliveries_bras

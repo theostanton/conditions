@@ -2,6 +2,7 @@ import {METEOFRANCE_TOKEN} from "@config/envs";
 import {Bulletin, ContentTypes} from "@app-types";
 import {CONTENT_TYPE_CONFIGS, getImageContentTypes, ContentTypeKey} from "@constants/contentTypes";
 import axios, {AxiosHeaders} from "axios";
+import {MassifCache} from "@cache/MassifCache";
 
 const meteoFranceHeaders: AxiosHeaders = new AxiosHeaders();
 meteoFranceHeaders.set('apikey', METEOFRANCE_TOKEN);
@@ -38,11 +39,15 @@ export namespace ImageService {
         const config = CONTENT_TYPE_CONFIGS.find(c => c.key === imageType);
         const label = config ? `${config.emoji} ${config.label}` : imageType;
         const datedContentTypeKeys: ContentTypeKey[] = ["rose_pentes", "montagne_risques", "weather"]
+        const name = MassifCache.findByCode(bulletin.massif)?.name
+        if (!name) {
+            return label
+        }
         if (datedContentTypeKeys.includes(imageType)) {
             const formattedDate = formatDate(bulletin.valid_to);
-            return `${label} - ${formattedDate}`;
+            return `${label} - ${name} - ${formattedDate}`;
         } else {
-            return label
+            return `${label} - ${name}`
         }
     }
 

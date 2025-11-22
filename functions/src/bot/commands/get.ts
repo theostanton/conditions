@@ -78,7 +78,21 @@ export namespace CommandGet {
             'Failed to send content. Please try again.'
         )).row();
 
-        contentTypeMenu.back("← Back");
+        contentTypeMenu.back("← Back", async (ctx) => {
+            // Find the mountain name for this massif to restore the title
+            const mountains = MassifCache.getMountains();
+            let mountain = '';
+            for (const m of mountains) {
+                const massifs = MassifCache.getByMountain(m);
+                if (massifs.some(ms => ms.code === massif.code)) {
+                    mountain = m;
+                    break;
+                }
+            }
+            await ctx.editMessageText(`Select massif in ${mountain} to get conditions for`).catch(err =>
+                console.error('Error updating message text:', err)
+            );
+        });
 
         return contentTypeMenu;
     }
@@ -92,11 +106,19 @@ export namespace CommandGet {
             const massifs = MassifCache.getByMountain(mountain);
 
             for (const massif of massifs) {
-                range.submenu(massif.name, `get-content-${massif.code}`).row();
+                range.submenu(massif.name, `get-content-${massif.code}`, async (ctx) => {
+                    await ctx.editMessageText(`Download current conditions for ${massif.name}`).catch(err =>
+                        console.error('Error updating message text:', err)
+                    );
+                }).row();
             }
         });
 
-        massifMenu.back("← Back to mountains");
+        massifMenu.back("← Back to mountains", async (ctx) => {
+            await ctx.editMessageText("First, select the range").catch(err =>
+                console.error('Error updating message text:', err)
+            );
+        });
 
         // THEN register all content type menus for this mountain's massifs
         for (const massif of massifs) {
@@ -114,7 +136,11 @@ export namespace CommandGet {
         mountainMenu.dynamic((_ctx, range) => {
             const mountains = MassifCache.getMountains();
             for (const mountain of mountains) {
-                range.submenu(mountain, `get-massifs-${mountain}`).row();
+                range.submenu(mountain, `get-massifs-${mountain}`, async (ctx) => {
+                    await ctx.editMessageText(`Select massif in ${mountain} to get conditions for`).catch(err =>
+                        console.error('Error updating message text:', err)
+                    );
+                }).row();
             }
         });
 
@@ -134,7 +160,7 @@ export namespace CommandGet {
                 await context.reply("Unable to identify user");
                 return;
             }
-            await context.reply("Choose a mountain range", {reply_markup: mountainMenu});
+            await context.reply("First, select the range", {reply_markup: mountainMenu});
         };
     }
 

@@ -83,6 +83,20 @@ export namespace ActionSubscriptions {
 
             // Navigate back to massif list
             if (context.callbackQuery?.message) {
+                // Get the mountain name from the massif to restore the title
+                const mountains = await import('@cache/MassifCache').then(m => m.MassifCache.getMountains());
+                let mountain = '';
+                for (const m of mountains) {
+                    const massifs = await import('@cache/MassifCache').then(mc => mc.MassifCache.getByMountain(m));
+                    if (massifs.some(ms => ms.code === massif.code)) {
+                        mountain = m;
+                        break;
+                    }
+                }
+
+                await context.editMessageText(`Toggle your subscriptions in ${mountain}`).catch(err =>
+                    console.error('Error updating message text:', err)
+                );
                 await context.menu.back({immediate: true}).catch(err =>
                     console.error('Error navigating back:', err)
                 );

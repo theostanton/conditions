@@ -34,7 +34,7 @@ export async function createBot(): Promise<Bot> {
             .resized();
 
         await ctx.reply(
-            "Use the buttons below for quick access:",
+            "Do you want to get the current conditions or subscribe to them?",
             { reply_markup: keyboard }
         );
     });

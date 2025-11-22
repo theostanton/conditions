@@ -67,12 +67,20 @@ export namespace CommandSubscriptions {
                         if (!ctx.from?.id) return;
                         // Initialize content types when entering the submenu
                         ActionSubscriptions.initializeContentTypes(ctx.from.id, massif);
+                        // Update message text to show massif name
+                        await ctx.editMessageText(`Select content in ${massif.name} to subscribe to`).catch(err =>
+                            console.error('Error updating message text:', err)
+                        );
                     }).row();
                 }
             }
         });
 
-        massifMenu.back("← Back to mountains");
+        massifMenu.back("← Back to mountains", async (ctx) => {
+            await ctx.editMessageText("First, select the range").catch(err =>
+                console.error('Error updating message text:', err)
+            );
+        });
 
         // Register all content type submenus for this mountain
         const massifs = MassifCache.getByMountain(mountain);
@@ -91,7 +99,11 @@ export namespace CommandSubscriptions {
             // Use cached data - no DB query!
             const mountains = MassifCache.getMountains();
             for (const mountain of mountains) {
-                range.submenu(mountain, `subscriptions-massifs-${mountain}`).row();
+                range.submenu(mountain, `subscriptions-massifs-${mountain}`, async (ctx) => {
+                    await ctx.editMessageText(`Toggle your subscriptions in ${mountain}`).catch(err =>
+                        console.error('Error updating message text:', err)
+                    );
+                }).row();
             }
         });
 
@@ -111,7 +123,7 @@ export namespace CommandSubscriptions {
                 await ctx.reply("Unable to identify user");
                 return;
             }
-            await ctx.reply("Choose a mountain range to manage your subscriptions", {reply_markup: mountainMenu});
+            await ctx.reply("First, select the range", {reply_markup: mountainMenu});
         };
     }
 

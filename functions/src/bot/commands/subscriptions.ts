@@ -15,9 +15,15 @@ export namespace CommandSubscriptions {
 
             const massifs = MassifCache.getByMountain(mountain);
 
+            // Batch fetch all subscription statuses to reduce database queries
+            const subscriptionStatuses = await Subscriptions.getSubscriptionStatuses(
+                ctx.from.id,
+                massifs.map(m => m.code)
+            );
+
             for (const massif of massifs) {
-                const isSubscribed = await Subscriptions.isSubscribed(ctx.from.id, massif.code);
-                const label = isSubscribed ? `✅ ${massif.name}` : massif.name;
+                const isSubscribed = subscriptionStatuses.get(massif.code) || false;
+                const label = isSubscribed ? `☑️ ${massif.name}` : `◻ ${massif.name}`;
 
                 range.text(label, async (context) => {
                     await ActionSubscriptions.toggle(context, massif);

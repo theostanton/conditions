@@ -12,6 +12,27 @@ export namespace Subscriptions {
         return result.rows.length > 0;
     }
 
+    export async function getSubscriptionStatuses(recipientId: number, massifCodes: number[]): Promise<Map<number, boolean>> {
+        if (massifCodes.length === 0) {
+            return new Map();
+        }
+
+        const client = await getClient();
+        const result = await client.query(
+            "SELECT massif FROM bra_subscriptions WHERE recipient = $1 AND massif = ANY($2)",
+            [recipientId, massifCodes]
+        );
+
+        const subscribedMassifs = new Set(result.rows.map(row => row.get('massif') as number));
+        const statusMap = new Map<number, boolean>();
+
+        for (const code of massifCodes) {
+            statusMap.set(code, subscribedMassifs.has(code));
+        }
+
+        return statusMap;
+    }
+
     export async function subscribe(userId: number, massif: Massif): Promise<void> {
         const client = await getClient();
         await client.query("INSERT INTO recipients (number) VALUES ($1) on conflict(number) DO NOTHING", [userId]);

@@ -6,6 +6,8 @@ import {PROJECT_ID, METEOFRANCE_TOKEN} from "@config/envs";
 import {Bulletin, BulletinInfos} from "@app-types";
 import {Database} from "@database/queries";
 import {formatDateTime} from "@utils/formatters";
+import {Analytics} from "@analytics/Analytics";
+import {MassifCache} from "@cache/MassifCache";
 
 const meteoFranceHeaders: AxiosHeaders = new AxiosHeaders();
 meteoFranceHeaders.set('Content-Type', 'application/xml');
@@ -26,27 +28,40 @@ export namespace BulletinService {
         validTo: Date,
         riskLevel?: number
     } | undefined> {
-        const response = await axios.get(
-            `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${massifCode}&format=xml`,
-            {headers: meteoFranceHeaders, timeout: 10000}
-        );
+        try {
+            const response = await axios.get(
+                `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${massifCode}&format=xml`,
+                {headers: meteoFranceHeaders, timeout: 10000}
+            );
 
-        const matchFrom = response.data.match(/DATEBULLETIN="(.[0-9-T:]*)"/);
-        const matchUntil = response.data.match(/DATEVALIDITE="(.[0-9-T:]*)"/);
+            const matchFrom = response.data.match(/DATEBULLETIN="(.[0-9-T:]*)"/);
+            const matchUntil = response.data.match(/DATEVALIDITE="(.[0-9-T:]*)"/);
 
-        if (matchFrom == null || matchUntil == null) {
-            return undefined;
+            if (matchFrom == null || matchUntil == null) {
+                return undefined;
+            }
+
+            // Extract RISQUEMAXI from the XML
+            const matchRiskLevel = response.data.match(/RISQUEMAXI="(\d+)"/);
+            const riskLevel = matchRiskLevel ? parseInt(matchRiskLevel[1], 10) : undefined;
+
+            return {
+                validFrom: new Date(matchFrom[1]),
+                validTo: new Date(matchUntil[1]),
+                riskLevel
+            };
+        } catch (error) {
+            const massifName = MassifCache.findByCode(massifCode)?.name || `massif ${massifCode}`;
+            console.error(`Failed to fetch bulletin metadata for ${massifName}:`, error);
+
+            // Report to admin
+            await Analytics.sendError(
+                error as Error,
+                `bulletinService.fetchBulletinMetadata: ${massifName}`
+            ).catch(err => console.error('Failed to send error analytics:', err));
+
+            throw error;
         }
-
-        // Extract RISQUEMAXI from the XML
-        const matchRiskLevel = response.data.match(/RISQUEMAXI="(\d+)"/);
-        const riskLevel = matchRiskLevel ? parseInt(matchRiskLevel[1], 10) : undefined;
-
-        return {
-            validFrom: new Date(matchFrom[1]),
-            validTo: new Date(matchUntil[1]),
-            riskLevel
-        };
     }
 
     export async function checkForNewBulletins(): Promise<NewBulletinsResult> {
@@ -114,6 +129,18 @@ export namespace BulletinService {
                     massifsWithNoUpdate.push(massif);
                 }
             }
+        }
+
+        // Report failed massifs to admin
+        if (failedMassifs.length > 0) {
+            const failedMassifsList = failedMassifs
+                .map(code => MassifCache.findByCode(code)?.name || `massif ${code}`)
+                .join(', ');
+            const summary = `${failedMassifs.length}/${massifsWithSubscribers.length} massif(s) failed metadata check: ${failedMassifsList}`;
+
+            await Analytics.send(
+                `🚨 Bulletin metadata check failures\n\n${summary}`
+            ).catch(err => console.error('Failed to send analytics:', err));
         }
 
         return {bulletinInfosToUpdate, massifsNew, failedMassifs, massifsWithUpdate, massifsWithNoUpdate}
@@ -202,8 +229,9 @@ export namespace BulletinService {
             })
         );
 
-        // Collect successful bulletins
+        // Collect successful bulletins and track failures
         const successfulBulletins: Bulletin[] = [];
+        const failedBulletins: Array<{ massif: number; error: any }> = [];
         const dbInserts: Array<{
             massif: number;
             filename: string;
@@ -215,6 +243,8 @@ export namespace BulletinService {
 
         for (let i = 0; i < results.length; i++) {
             const result = results[i];
+            const bulletin = newBulletinsToFetch[i];
+
             if (result.status === 'fulfilled') {
                 const {bulletin, filename, publicUrl} = result.value;
                 successfulBulletins.push({...bulletin, filename, public_url: publicUrl});
@@ -227,8 +257,21 @@ export namespace BulletinService {
                     riskLevel: bulletin.risk_level
                 });
             } else {
-                console.error(`Failed to process bulletin:`, result.reason);
+                console.error(`Failed to process bulletin for massif ${bulletin.massif}:`, result.reason);
+                failedBulletins.push({massif: bulletin.massif, error: result.reason});
             }
+        }
+
+        // Report failures to admin
+        if (failedBulletins.length > 0) {
+            const failedMassifsList = failedBulletins
+                .map(f => MassifCache.findByCode(f.massif)?.name || `massif ${f.massif}`)
+                .join(', ');
+            const summary = `${failedBulletins.length}/${newBulletinsToFetch.length} bulletin(s) failed to fetch/store: ${failedMassifsList}`;
+
+            await Analytics.send(
+                `🚨 Bulletin processing failures\n\n${summary}`
+            ).catch(err => console.error('Failed to send analytics:', err));
         }
 
         // Batch insert all bulletins into database

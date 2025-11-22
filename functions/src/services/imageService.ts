@@ -3,6 +3,7 @@ import {Bulletin, ContentTypes} from "@app-types";
 import {CONTENT_TYPE_CONFIGS, getImageContentTypes, ContentTypeKey} from "@constants/contentTypes";
 import axios, {AxiosHeaders} from "axios";
 import {MassifCache} from "@cache/MassifCache";
+import {Analytics} from "@analytics/Analytics";
 
 const meteoFranceHeaders: AxiosHeaders = new AxiosHeaders();
 meteoFranceHeaders.set('apikey', METEOFRANCE_TOKEN);
@@ -45,9 +46,9 @@ export namespace ImageService {
         }
         if (datedContentTypeKeys.includes(imageType)) {
             const formattedDate = formatDate(bulletin.valid_to);
-            return `${label} - ${name} - ${formattedDate}`;
+            return `${label} • ${name} • ${formattedDate}`;
         } else {
-            return `${label} - ${name}`
+            return `${label} • ${name}`
         }
     }
 
@@ -99,7 +100,16 @@ export namespace ImageService {
 
             return {data, type: imageType, filename, caption};
         } catch (error) {
-            console.error(`Failed to fetch image ${imageType} for massif ${massifCode}:`, error);
+            const massifName = MassifCache.findByCode(massifCode)?.name || `massif ${massifCode}`;
+            const errorContext = `Failed to fetch ${imageType} image for ${massifName}`;
+            console.error(`${errorContext}:`, error);
+
+            // Report to admin
+            await Analytics.sendError(
+                error as Error,
+                `imageService.fetchImage: ${imageType} for ${massifName}`
+            ).catch(err => console.error('Failed to send error analytics:', err));
+
             throw error;
         }
     }
@@ -118,12 +128,28 @@ export namespace ImageService {
 
         // Filter out failed requests and log them
         const fetchedImages: FetchedImage[] = [];
-        for (const result of results) {
+        const failedTypes: ImageType[] = [];
+
+        for (let i = 0; i < results.length; i++) {
+            const result = results[i];
             if (result.status === 'fulfilled') {
                 fetchedImages.push(result.value);
             } else {
-                console.error('Failed to fetch image:', result.reason);
+                const imageType = imageTypes[i];
+                failedTypes.push(imageType);
+                console.error(`Failed to fetch ${imageType} image:`, result.reason);
             }
+        }
+
+        // Report partial failures to admin if any occurred
+        if (failedTypes.length > 0) {
+            const massifName = MassifCache.findByCode(massifCode)?.name || `massif ${massifCode}`;
+            const failedTypesList = failedTypes.join(', ');
+            const summary = `${failedTypes.length}/${imageTypes.length} image(s) failed for ${massifName}: ${failedTypesList}`;
+
+            await Analytics.send(
+                `🚨 Partial image fetch failure\n\n${summary}`
+            ).catch(err => console.error('Failed to send analytics:', err));
         }
 
         return fetchedImages;

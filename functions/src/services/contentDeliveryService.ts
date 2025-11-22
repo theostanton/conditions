@@ -2,6 +2,7 @@ import {Bot, Context, InputFile} from "grammy";
 import {Bulletin, ContentTypes, Massif} from "@app-types";
 import {ImageService} from "@services/imageService";
 import {InputMediaBuilder} from "grammy";
+import {Analytics} from "@analytics/Analytics";
 
 export namespace ContentDeliveryService {
 
@@ -28,32 +29,60 @@ export namespace ContentDeliveryService {
 
         // Send bulletin PDF if enabled
         if (contentTypes.bulletin !== false) {  // Default to true if undefined
-            if (context) {
-                await context.replyWithDocument(bulletin.public_url);
+            try {
+                if (context) {
+                    await context.replyWithDocument(bulletin.public_url);
 
-                if (bulletin.valid_to < new Date()) {
-                    await context.reply(`Latest bulletin for ${massif.name} is outdated`);
+                    if (bulletin.valid_to < new Date()) {
+                        await context.reply(`Latest bulletin for ${massif.name} is outdated`);
+                    }
+                } else if (bot && recipient) {
+                    await bot.api.sendDocument(recipient, bulletin.public_url);
                 }
-            } else if (bot && recipient) {
-                await bot.api.sendDocument(recipient, bulletin.public_url);
+            } catch (error) {
+                console.error(`Failed to send bulletin PDF for ${massif.name}:`, error);
+                await Analytics.sendError(
+                    error as Error,
+                    `contentDeliveryService: Failed to send bulletin PDF for ${massif.name}`
+                ).catch(err => console.error('Failed to send error analytics:', err));
+                throw error;
             }
         }
 
         // Fetch and send images for enabled content types
-        const fetchedImages = await ImageService.fetchImages(massif.code, contentTypes, bulletin);
+        let fetchedImages: ImageService.FetchedImage[] = [];
+        try {
+            fetchedImages = await ImageService.fetchImages(massif.code, contentTypes, bulletin);
+        } catch (error) {
+            console.error(`Failed to fetch images for ${massif.name}:`, error);
+            await Analytics.sendError(
+                error as Error,
+                `contentDeliveryService: Failed to fetch images for ${massif.name}`
+            ).catch(err => console.error('Failed to send error analytics:', err));
+            // Don't throw - allow partial delivery (bulletin was sent successfully)
+        }
 
         // Send images if any were successfully fetched
         if (fetchedImages.length > 0) {
-            // Create InputFile objects from fetched image buffers with captions
-            const mediaGroup = fetchedImages.map(image => {
-                const inputFile = new InputFile(image.data, image.filename);
-                return InputMediaBuilder.photo(inputFile, {caption: image.caption});
-            });
+            try {
+                // Create InputFile objects from fetched image buffers with captions
+                const mediaGroup = fetchedImages.map(image => {
+                    const inputFile = new InputFile(image.data, image.filename);
+                    return InputMediaBuilder.photo(inputFile, {caption: image.caption});
+                });
 
-            if (context) {
-                await context.replyWithMediaGroup(mediaGroup);
-            } else if (bot && recipient) {
-                await bot.api.sendMediaGroup(recipient, mediaGroup);
+                if (context) {
+                    await context.replyWithMediaGroup(mediaGroup);
+                } else if (bot && recipient) {
+                    await bot.api.sendMediaGroup(recipient, mediaGroup);
+                }
+            } catch (error) {
+                console.error(`Failed to send media group for ${massif.name}:`, error);
+                await Analytics.sendError(
+                    error as Error,
+                    `contentDeliveryService: Failed to send media group for ${massif.name}`
+                ).catch(err => console.error('Failed to send error analytics:', err));
+                throw error;
             }
         } else {
             // If no bulletin and no images were sent, notify the user

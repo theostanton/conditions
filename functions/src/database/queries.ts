@@ -1,5 +1,6 @@
 import {getClient} from "@config/database";
 import {BulletinInfos, Subscription} from "@app-types";
+import {Analytics} from "@analytics/Analytics";
 
 type SubscriptionRow = {
     massif: number,
@@ -8,11 +9,20 @@ type SubscriptionRow = {
 
 export namespace Database {
     export async function getMassifsWithSubscribers(): Promise<number[]> {
-        const client = await getClient();
-        const result = await client.query<Pick<BulletinInfos, "massif">>(
-            "select concat(massif) as massif from bra_subscriptions group by massif"
-        );
-        return [...result].map(s => s.massif);
+        try {
+            const client = await getClient();
+            const result = await client.query<Pick<BulletinInfos, "massif">>(
+                "select concat(massif) as massif from bra_subscriptions group by massif"
+            );
+            return [...result].map(s => s.massif);
+        } catch (error) {
+            console.error('Database error in getMassifsWithSubscribers:', error);
+            await Analytics.sendError(
+                error as Error,
+                'Database.getMassifsWithSubscribers'
+            ).catch(err => console.error('Failed to send error analytics:', err));
+            throw error;
+        }
     }
 
     export async function getTotalSubscribers(): Promise<number> {
@@ -24,11 +34,20 @@ export namespace Database {
     }
 
     export async function getLatestStoredBulletins(): Promise<BulletinInfos[]> {
-        const client = await getClient();
-        const result = await client.query<BulletinInfos>(
-            "select massif, max(valid_from) as valid_from, max(valid_to) as valid_to from bras group by massif"
-        );
-        return [...result];
+        try {
+            const client = await getClient();
+            const result = await client.query<BulletinInfos>(
+                "select massif, max(valid_from) as valid_from, max(valid_to) as valid_to from bras group by massif"
+            );
+            return [...result];
+        } catch (error) {
+            console.error('Database error in getLatestStoredBulletins:', error);
+            await Analytics.sendError(
+                error as Error,
+                'Database.getLatestStoredBulletins'
+            ).catch(err => console.error('Failed to send error analytics:', err));
+            throw error;
+        }
     }
 
     export async function insertBulletin(
@@ -83,33 +102,51 @@ export namespace Database {
             return;
         }
 
-        const client = await getClient();
-        const values: any[] = [];
-        const placeholders: string[] = [];
+        try {
+            const client = await getClient();
+            const values: any[] = [];
+            const placeholders: string[] = [];
 
-        bulletins.forEach((b, i) => {
-            const base = i * 6;
-            placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`);
-            values.push(b.massif, b.filename, b.publicUrl, b.validFrom, b.validTo, b.riskLevel);
-        });
+            bulletins.forEach((b, i) => {
+                const base = i * 6;
+                placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`);
+                values.push(b.massif, b.filename, b.publicUrl, b.validFrom, b.validTo, b.riskLevel);
+            });
 
-        await client.query(
-            `insert into bras (massif, filename, public_url, valid_from, valid_to, risk_level)
-            values
-            ${placeholders.join(', ')}`,
-            values
-        );
-        console.log(`Batch inserted ${bulletins.length} bulletins into database`);
+            await client.query(
+                `insert into bras (massif, filename, public_url, valid_from, valid_to, risk_level)
+                values
+                ${placeholders.join(', ')}`,
+                values
+            );
+            console.log(`Batch inserted ${bulletins.length} bulletins into database`);
+        } catch (error) {
+            console.error(`Database error in insertBulletins (${bulletins.length} bulletins):`, error);
+            await Analytics.sendError(
+                error as Error,
+                `Database.insertBulletins: Failed to insert ${bulletins.length} bulletins`
+            ).catch(err => console.error('Failed to send error analytics:', err));
+            throw error;
+        }
     }
 
     export async function getSubscriptionsByMassif(): Promise<SubscriptionRow[]> {
-        const client = await getClient();
-        const result = await client.query<SubscriptionRow>(
-            `select s.massif as massif, string_agg(s.recipient, ',') as recipients
-             from bra_subscriptions as s
-             group by s.massif;`
-        );
-        return [...result];
+        try {
+            const client = await getClient();
+            const result = await client.query<SubscriptionRow>(
+                `select s.massif as massif, string_agg(s.recipient, ',') as recipients
+                 from bra_subscriptions as s
+                 group by s.massif;`
+            );
+            return [...result];
+        } catch (error) {
+            console.error('Database error in getSubscriptionsByMassif:', error);
+            await Analytics.sendError(
+                error as Error,
+                'Database.getSubscriptionsByMassif'
+            ).catch(err => console.error('Failed to send error analytics:', err));
+            throw error;
+        }
     }
 
     export async function getSubscriptionsByRecipients(recipients: string[], massif: number): Promise<Subscription[]> {

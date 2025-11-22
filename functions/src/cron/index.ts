@@ -3,6 +3,7 @@ import {NotificationService} from "./services/notificationService";
 import {setupDatabase, closeConnection} from "@config/database";
 import {Database} from "@database/queries";
 import {CronExecutions, type CronExecution} from "@database/models/CronExecutions";
+import {Analytics} from "@analytics/Analytics";
 
 export default async function () {
     const startTime = Date.now();
@@ -63,6 +64,12 @@ export default async function () {
         execution.error_message = error instanceof Error ? error.message : String(error);
         execution.summary = `Failed at ${stage}: ${execution.error_message}`;
         console.error(`Error in main cron logic on ${stage}:`, error);
+
+        // Send real-time alert to admin about cron failure
+        await Analytics.sendError(
+            error as Error,
+            `Cron job failed at stage: ${stage}`
+        ).catch(err => console.error('Failed to send error analytics:', err));
     } finally {
         // Always record execution, even on failure
         execution.duration_ms = Date.now() - startTime;
@@ -70,6 +77,23 @@ export default async function () {
             await CronExecutions.insert(execution);
         } catch (dbError) {
             console.error('Failed to insert cron execution record:', dbError);
+            await Analytics.sendError(
+                dbError as Error,
+                'Failed to insert cron execution record'
+            ).catch(err => console.error('Failed to send error analytics:', err));
+        }
+
+        // Send summary notification to admin based on execution status
+        if (execution.status === 'success' && (execution.bulletins_delivered_count ?? 0) > 0) {
+            const durationSec = ((execution.duration_ms ?? 0) / 1000).toFixed(1);
+            await Analytics.send(
+                `✅ Cron job completed successfully\n\n${execution.summary}\n\nDelivered: ${execution.bulletins_delivered_count} bulletins\nDuration: ${durationSec}s`
+            ).catch(err => console.error('Failed to send analytics:', err));
+        } else if (execution.status === 'partial') {
+            const durationSec = ((execution.duration_ms ?? 0) / 1000).toFixed(1);
+            await Analytics.send(
+                `⚠️ Cron job completed with partial failures\n\n${execution.summary}\n\nDuration: ${durationSec}s`
+            ).catch(err => console.error('Failed to send analytics:', err));
         }
 
         // Close the database connection to prevent connection leaks

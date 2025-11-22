@@ -6,6 +6,7 @@ import {ArrayUtils} from "@utils/array";
 import {AsyncUtils} from "@utils/async";
 import {ContentDeliveryService} from "@services/contentDeliveryService";
 import {MassifCache} from "@cache/MassifCache";
+import {Analytics} from "@analytics/Analytics";
 
 export namespace NotificationService {
 
@@ -76,6 +77,8 @@ export namespace NotificationService {
         const batches = ArrayUtils.chunk(messages, BATCH_SIZE);
         let totalSent = 0;
         let totalFailed = 0;
+        const failedRecipients: Array<{recipient: string; massif: number; error: any}> = [];
+        const recordingFailures: Array<{recipient: string; error: any}> = [];
 
         for (let i = 0; i < batches.length; i++) {
             const batch = batches[i];
@@ -98,10 +101,16 @@ export namespace NotificationService {
                         await Deliveries.recordDelivery(msg.recipient, msg.bulletin);
                     } catch (error) {
                         console.error(`Failed to record delivery for ${msg.recipient}:`, error);
+                        recordingFailures.push({recipient: msg.recipient, error});
                     }
                 } else {
                     totalFailed++;
                     console.error(`Failed to send to ${msg.recipient}:`, result.reason);
+                    failedRecipients.push({
+                        recipient: msg.recipient,
+                        massif: msg.massif,
+                        error: result.reason
+                    });
                 }
             }
 
@@ -112,6 +121,28 @@ export namespace NotificationService {
         }
 
         console.log(`Sent ${totalSent} messages successfully, ${totalFailed} failed`);
+
+        // Report failures to admin
+        if (totalFailed > 0) {
+            const failureDetails = failedRecipients
+                .map(f => {
+                    const massifName = MassifCache.findByCode(f.massif)?.name || `massif ${f.massif}`;
+                    return `• ${f.recipient} (${massifName})`;
+                })
+                .join('\n');
+
+            await Analytics.send(
+                `🚨 Notification delivery failures\n\n${totalFailed}/${messages.length} notifications failed:\n${failureDetails}`
+            ).catch(err => console.error('Failed to send analytics:', err));
+        }
+
+        // Report delivery recording failures
+        if (recordingFailures.length > 0) {
+            await Analytics.send(
+                `⚠️ Failed to record ${recordingFailures.length} delivery record(s)\n\nRecipients: ${recordingFailures.map(f => f.recipient).join(', ')}`
+            ).catch(err => console.error('Failed to send analytics:', err));
+        }
+
         return totalSent;
     }
 

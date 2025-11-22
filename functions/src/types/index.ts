@@ -23,3 +23,16 @@ export type BulletinDestination = {
     valid_from: Date,
     valid_to: Date,
 }
+
+export type ContentTypes = {
+    bulletin: boolean,
+    snow_report: boolean,
+    fresh_snow: boolean,
+    weather: boolean,
+    last_7_days: boolean,
+}
+
+export type Subscription = {
+    recipient: number,
+    massif: number,
+} & ContentTypes

@@ -14,8 +14,14 @@ create table recipients
 
 create table bra_subscriptions
 (
-    recipient varchar(12) not null,
-    massif    integer
+    recipient   varchar(12) not null,
+    massif      integer,
+    bulletin    boolean default true,
+    snow_report boolean default false,
+    fresh_snow  boolean default false,
+    weather     boolean default false,
+    last_7_days boolean default false,
+    UNIQUE (recipient, massif)
 );
 
 create table bras

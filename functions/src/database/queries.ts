@@ -1,5 +1,5 @@
 import {getClient} from "@config/database";
-import {BulletinInfos} from "@app-types";
+import {BulletinInfos, Subscription} from "@app-types";
 
 type SubscriptionRow = {
     massif: number,
@@ -110,5 +110,30 @@ export namespace Database {
              group by s.massif;`
         );
         return [...result];
+    }
+
+    export async function getSubscriptionsByRecipients(recipients: string[], massif: number): Promise<Subscription[]> {
+        if (recipients.length === 0) {
+            return [];
+        }
+
+        const client = await getClient();
+        const placeholders = recipients.map((_, i) => `$${i + 2}`).join(',');
+        const result = await client.query(
+            `SELECT recipient, massif, bulletin, snow_report, fresh_snow, weather, last_7_days
+             FROM bra_subscriptions
+             WHERE massif = $1 AND recipient::text IN (${placeholders})`,
+            [massif, ...recipients]
+        );
+
+        return result.rows.map(row => ({
+            recipient: row.get('recipient') as number,
+            massif: row.get('massif') as number,
+            bulletin: row.get('bulletin') as boolean,
+            snow_report: row.get('snow_report') as boolean,
+            fresh_snow: row.get('fresh_snow') as boolean,
+            weather: row.get('weather') as boolean,
+            last_7_days: row.get('last_7_days') as boolean,
+        }));
     }
 }

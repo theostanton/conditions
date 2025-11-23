@@ -175,4 +175,36 @@ export namespace Database {
             montagne_risques: row.get('montagne_risques') as boolean,
         }));
     }
+
+    export async function getValidBulletins(): Promise<Array<{
+        massif: number;
+        filename: string;
+        public_url: string;
+        valid_from: Date;
+        valid_to: Date;
+    }>> {
+        try {
+            const client = await getClient();
+            const result = await client.query(
+                `SELECT DISTINCT ON (massif) massif, filename, public_url, valid_from, valid_to
+                 FROM bras
+                 WHERE valid_to > NOW()
+                 ORDER BY massif, valid_to DESC, valid_from DESC`
+            );
+            return result.rows.map(row => ({
+                massif: row.get('massif') as number,
+                filename: row.get('filename') as string,
+                public_url: row.get('public_url') as string,
+                valid_from: row.get('valid_from') as Date,
+                valid_to: row.get('valid_to') as Date,
+            }));
+        } catch (error) {
+            console.error('Database error in getValidBulletins:', error);
+            await Analytics.sendError(
+                error as Error,
+                'Database.getValidBulletins'
+            ).catch(err => console.error('Failed to send error analytics:', err));
+            throw error;
+        }
+    }
 }

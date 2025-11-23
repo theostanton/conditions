@@ -4,6 +4,7 @@ import {setupDatabase, closeConnection} from "@config/database";
 import {Database} from "@database/queries";
 import {CronExecutions, type CronExecution} from "@database/models/CronExecutions";
 import {Analytics} from "@analytics/Analytics";
+import {MassifCache} from "@cache/MassifCache";
 
 export default async function () {
     const startTime = Date.now();
@@ -14,6 +15,10 @@ export default async function () {
 
     try {
         await setupDatabase();
+
+        // Initialize massif cache for notification sending
+        stage = 'initializeMassifCache'
+        await MassifCache.initialize();
 
         // Massifs with subscribers - fetch both in parallel
         stage = 'getSubscriberStats'
@@ -43,10 +48,18 @@ export default async function () {
             stage = 'fetchAndStoreBulletins'
             const newBulletins = await BulletinService.fetchAndStoreBulletins(newBulletinsToFetch);
             console.log(`newBulletins=${JSON.stringify(newBulletins)}`);
+        }
 
+        // Always check all valid bulletins for delivery, not just new ones
+        // This ensures failed deliveries are retried on subsequent runs
+        stage = 'getValidBulletins'
+        const validBulletins = await Database.getValidBulletins();
+        console.log(`validBulletins count=${validBulletins.length}`);
+
+        if (validBulletins.length > 0) {
             // Check subscription difference
             stage = 'generateSubscriptionDestinations'
-            const destinations = await NotificationService.generateSubscriptionDestinations(newBulletins);
+            const destinations = await NotificationService.generateSubscriptionDestinations(validBulletins);
             console.log(`destinations=${JSON.stringify(destinations)}`);
 
             // Send to subscribers

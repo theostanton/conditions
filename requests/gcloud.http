@@ -1,22 +1,17 @@
 ### Google Cloud Platform - Cloud Functions
 ### Project ID: conditions-450312
-### Region: us-east1
+### Region: europe-west1
 ### Note: Requires gcloud authentication token
 ### Get token with: gcloud auth print-identity-token
 
 ### Trigger Cron Endpoint (Cloud Run)
 ### Checks for new bulletins and sends notifications
-POST https://cron-dmytevhowa-ue.a.run.app
-Authorization: Bearer {{gcloud_identity_token}}
-
-###
-### Trigger Cron Endpoint - Cloud Function
-POST https://us-east1-conditions-450312.cloudfunctions.net/cronEndpoint
+POST https://cron-dmytevhowa-ew.a.run.app
 Authorization: Bearer {{gcloud_identity_token}}
 
 ###
 ### Bot Webhook Endpoint - Test with mock Telegram update
-POST https://us-east1-conditions-450312.cloudfunctions.net/botWebhook
+POST https://bot-dmytevhowa-ew.a.run.app
 Content-Type: application/json
 
 {
@@ -42,7 +37,7 @@ Content-Type: application/json
 
 ###
 ### Test webhook with /subscribe command
-POST https://us-east1-conditions-450312.cloudfunctions.net/botWebhook
+POST https://bot-dmytevhowa-ew.a.run.app
 Content-Type: application/json
 
 {

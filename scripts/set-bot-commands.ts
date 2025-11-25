@@ -1,24 +1,6 @@
-/**
- * One-time script to set Telegram bot commands
- * Run this after deployment to configure the bot menu
- *
- * Usage from project root:
- *   TELEGRAM_BOT_TOKEN=<token> node -e "
- *     fetch('https://api.telegram.org/bot' + process.env.TELEGRAM_BOT_TOKEN + '/setMyCommands', {
- *       method: 'POST',
- *       headers: {'Content-Type': 'application/json'},
- *       body: JSON.stringify({commands: [
- *         {command: 'get', description: 'Get the latest BERA'},
- *         {command: 'subscriptions', description: 'Manage your BERA subscriptions'}
- *       ]})
- *     }).then(r => r.json()).then(console.log)
- *   "
- *
- * Or use curl:
- *   curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setMyCommands" \
- *     -H "Content-Type: application/json" \
- *     -d '{"commands":[{"command":"get","description":"Get the latest BERA"},{"command":"subscriptions","description":"Manage your BERA subscriptions"}]}'
- */
+import {config} from "dotenv";
+
+config()
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -35,8 +17,8 @@ async function setCommands() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             commands: [
-                {command: 'get', description: 'Get the latest BERA'},
-                {command: 'subscriptions', description: 'Manage your BERA subscriptions'}
+                {command: 'subscriptions', description: 'Subscribe to conditions'},
+                {command: 'get', description: 'Download the current conditions'},
             ]
         })
     });

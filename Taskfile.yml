@@ -15,3 +15,8 @@ tasks:
     desc: Plan
     cmds:
       - task: infra:plan
+
+  trigger-cron:
+    desc: Trigger the cron function manually
+    cmds:
+      - gcloud scheduler jobs run cron-job-trigger-hourly --location=europe-west1

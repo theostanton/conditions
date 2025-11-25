@@ -4,17 +4,18 @@ import {Deliveries} from "@database/models/Deliveries";
 import {Bulletin, ContentTypes, Massif} from "@app-types";
 import {BulletinService} from "@services/bulletinService";
 import {ContentDeliveryService} from "@services/contentDeliveryService";
+import {BotMessages} from "@bot/messages";
 
 export namespace ActionBulletins {
 
     async function fetchAndStoreBulletin(massif: Massif, context: Context): Promise<Bulletin | undefined> {
-        const message = await context.reply(`Fetching latest bulletin for ${massif.name}...`);
+        const message = await context.reply(BotMessages.status.fetchingBulletin(massif.name));
 
         try {
             const metadata = await BulletinService.fetchBulletinMetadata(massif.code);
 
             if (!metadata) {
-                await context.reply(`Currently no bulletin available for ${massif.name}`);
+                await context.reply(BotMessages.status.noBulletinAvailable(massif.name));
                 return undefined;
             }
 
@@ -26,14 +27,14 @@ export namespace ActionBulletins {
             }]);
 
             if (bulletins.length === 0) {
-                await context.reply(`Failed to fetch bulletin for ${massif.name}`);
+                await context.reply(BotMessages.errors.fetchBulletinFailed(massif.name));
                 return undefined;
             }
 
             return bulletins[0];
         } catch (error) {
             console.error('Error fetching bulletin:', error);
-            await context.reply(`Failed to fetch bulletin for ${massif.name}. Please try again.`);
+            await context.reply(BotMessages.errors.fetchBulletinRetry(massif.name));
             return undefined;
         }
     }
@@ -63,7 +64,7 @@ export namespace ActionBulletins {
 
             const recipient = context.from?.id?.toString();
             if (!recipient) {
-                await context.reply('Unable to identify recipient');
+                await context.reply(BotMessages.errors.unableToIdentifyRecipient);
                 return;
             }
 
@@ -78,7 +79,7 @@ export namespace ActionBulletins {
 
         } catch (error) {
             console.error('Error sending bulletin:', error);
-            await context.reply(`Failed to retrieve bulletin for ${massif.name}. Please try again.`);
+            await context.reply(BotMessages.errors.retrieveBulletinRetry(massif.name));
         }
     }
 }

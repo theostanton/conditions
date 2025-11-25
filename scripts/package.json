@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "types": "../types/types.d.ts",
   "scripts": {
-    "update-massifs": "tsx update_massifs.ts"
+    "update-massifs": "tsx update_massifs.ts",
+    "set-bot-commands": "tsx set-bot-commands.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.15.1",

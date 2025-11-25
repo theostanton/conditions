@@ -62,7 +62,6 @@ resource "null_resource" "webhook_set" {
   depends_on = [null_resource.webhook_cloud_sql]
 
   triggers = {
-    always_run  = timestamp()
     webhook_uri = google_cloudfunctions2_function.webhook.service_config[0].uri
   }
 

@@ -6,6 +6,8 @@ import {Analytics} from "@analytics/Analytics";
 import {Bulletins} from "@database/models/Bulletins";
 import {BulletinService} from "@services/bulletinService";
 import {ContentDeliveryService} from "@services/contentDeliveryService";
+import {BotMessages} from "@bot/messages";
+import {Deliveries} from "@database/models/Deliveries";
 
 // Store temporary content type selections for each user/massif combination
 const contentTypeSelections = new Map<string, Partial<ContentTypes>>();
@@ -35,8 +37,16 @@ async function sendWelcomeContent(context: Context, massif: Massif, contentTypes
     }
 
     // Send bulletin and images if we have one
-    if (bulletin) {
+    if (bulletin && context.from?.id) {
         await ContentDeliveryService.sendWithContext(context, bulletin, massif, contentTypes);
+
+        // Record delivery to prevent duplicate sending on next cron run
+        try {
+            await Deliveries.recordDelivery(context.from.id.toString(), bulletin);
+        } catch (error) {
+            console.error(`Failed to record welcome delivery for ${context.from.id}:`, error);
+            // Don't throw - delivery was successful, just recording failed
+        }
     }
 }
 
@@ -67,7 +77,7 @@ export namespace ActionSubscriptions {
     export async function saveContentTypes(context: Context & MenuFlavor, massif: Massif): Promise<void> {
         try {
             if (!context.from?.id) {
-                await context.reply("Unable to identify user");
+                await context.reply(BotMessages.errors.unableToIdentifyUser);
                 return;
             }
 
@@ -94,7 +104,7 @@ export namespace ActionSubscriptions {
                     }
                 }
 
-                await context.editMessageText(`Toggle your subscriptions in ${mountain}`).catch(err =>
+                await context.editMessageText(BotMessages.menuHeaders.yourSubscriptions(mountain), {parse_mode: BotMessages.parseMode}).catch(err =>
                     console.error('Error updating message text:', err)
                 );
                 await context.menu.back({immediate: true}).catch(err =>
@@ -117,19 +127,19 @@ export namespace ActionSubscriptions {
 
             if (context.callbackQuery) {
                 await context.answerCallbackQuery({
-                    text: `Failed to update subscription for ${massif.name}`,
+                    text: BotMessages.errors.updateSubscriptionFailed(massif.name),
                     show_alert: true
                 }).catch(() => {});
             }
 
-            await context.reply(`Failed to update subscription for ${massif.name}. Please try again.`);
+            await context.reply(BotMessages.errors.updateSubscriptionRetry(massif.name));
         }
     }
 
     export async function unsubscribe(context: Context & MenuFlavor, massif: Massif): Promise<void> {
         try {
             if (!context.from?.id) {
-                await context.reply("Unable to identify user");
+                await context.reply(BotMessages.errors.unableToIdentifyUser);
                 return;
             }
 
@@ -158,12 +168,12 @@ export namespace ActionSubscriptions {
 
             if (context.callbackQuery) {
                 await context.answerCallbackQuery({
-                    text: `Failed to unsubscribe from ${massif.name}`,
+                    text: BotMessages.errors.unsubscribeFailed(massif.name),
                     show_alert: true
                 }).catch(() => {});
             }
 
-            await context.reply(`Failed to unsubscribe from ${massif.name}. Please try again.`);
+            await context.reply(BotMessages.errors.unsubscribeRetry(massif.name));
         }
     }
 }

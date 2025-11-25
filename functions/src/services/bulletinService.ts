@@ -183,7 +183,7 @@ export namespace BulletinService {
         const toDateString = formatDateTime(bulletin.valid_from);
 
        if (bulletin.risk_level) {
-            return `/tmp/${massifName} ${toDateString} ${bulletin.risk_level}⁄5.pdf`;
+            return `/tmp/${massifName} ${toDateString} ${bulletin.risk_level} ⁄ 5.pdf`;
         } else {
             return `/tmp/${massifName} ${toDateString}.pdf`;
         }

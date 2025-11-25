@@ -26,22 +26,36 @@ create table bra_subscriptions
 
 create table bras
 (
-    massif     integer     not null,
-    date       varchar(10) not null,
-    filename   text        not null,
-    valid_to   date        not null,
-    valid_from   date        not null,
-    public_url text        not null,
+    massif     integer   not null,
+    filename   text      not null,
+    public_url text      not null,
+    valid_to   timestamp not null,
+    valid_from timestamp not null,
     risk_level integer
 );
 
-create table deliveries_bras
+comment on column bras.risk_level is 'Maximum avalanche risk level from RISQUEMAXI (1=Low to 5=Very High)';
+
+alter table bras
+    owner to postgres;
+
+
+
+create table public.deliveries_bras
 (
-    recipient varchar(12) not null,
-    massif    integer     not null,
-    date      integer     not null,
-    timestamp timestamp
+    recipient          varchar(12) not null,
+    massif             integer     not null,
+    delivery_timestamp timestamp   not null,
+    valid_from         timestamp   not null
 );
+
+alter table public.deliveries_bras
+    owner to postgres;
+
+
+
+-- Index for fast delivery checks during notification generation
+CREATE INDEX IF NOT EXISTS idx_deliveries_bras_lookup ON deliveries_bras (massif, valid_from, recipient);
 
 CREATE TABLE IF NOT EXISTS cron_executions
 (

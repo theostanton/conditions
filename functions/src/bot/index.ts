@@ -3,6 +3,7 @@ import {CommandGet} from './commands/get';
 import {CommandSubscriptions} from './commands/subscriptions';
 import {MassifCache} from '@cache/MassifCache';
 import {TELEGRAM_BOT_TOKEN} from "@config/envs";
+import {BotMessages} from "@bot/messages";
 
 export async function createBot(): Promise<Bot> {
     const bot = new Bot(TELEGRAM_BOT_TOKEN);
@@ -16,8 +17,9 @@ export async function createBot(): Promise<Bot> {
     // Commands only need to be set once. Run this manually when deploying:
     // const bot = new Bot(token); await bot.api.setMyCommands([...]);
 
-    await CommandGet.attach(bot)
-    await CommandSubscriptions.attach(bot)
+    // Attach both commands
+    await CommandGet.attach(bot);
+    await CommandSubscriptions.attach(bot);
 
     bot.on('message:text', async (ctx) => {
         const text = ctx.message.text;
@@ -34,7 +36,7 @@ export async function createBot(): Promise<Bot> {
             .resized();
 
         await ctx.reply(
-            "Do you want to get the current conditions or subscribe to them?",
+            BotMessages.prompts.mainMenu,
             { reply_markup: keyboard }
         );
     });

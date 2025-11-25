@@ -6,11 +6,43 @@ import {Subscriptions} from "@database/models/Subscriptions";
 import {Analytics} from "@analytics/Analytics";
 import {Massif} from "@app-types";
 import {CONTENT_TYPE_CONFIGS} from "@constants/contentTypes";
+import {CommandGet} from "@bot/commands/get";
+import {BotMessages} from "@bot/messages";
 
 export namespace CommandSubscriptions {
 
+    // Store content type menus for cross-navigation
+    const contentTypeMenus = new Map<number, Menu>();
+
     function buildContentTypeMenu(massif: Massif): Menu {
         const contentMenu = new Menu<Context>(`content-types-${massif.code}`);
+
+        // Add back button to switch to get menu
+        contentMenu.text("← Back", async (ctx) => {
+            if (!ctx.from?.id) return;
+
+            try {
+                // Clear any temporary subscription state
+                ActionSubscriptions.clearContentTypes(ctx.from.id, massif);
+
+                // Get the target get menu
+                const getMenu = CommandGet.getContentTypeMenu(massif.code);
+                if (!getMenu) {
+                    console.error(`Get menu not found for massif ${massif.code}`);
+                    return;
+                }
+
+                // Update the message text and reply markup to the get menu
+                await ctx.editMessageText(BotMessages.menuHeaders.download(massif.name), {
+                    parse_mode: BotMessages.parseMode,
+                    reply_markup: getMenu
+                }).catch(err => {
+                    console.error('Error updating message:', err);
+                });
+            } catch (err) {
+                console.error('Error navigating to get:', err);
+            }
+        }).row();
 
         contentMenu.dynamic(async (ctx, range) => {
             if (!ctx.from?.id) return;
@@ -31,15 +63,29 @@ export namespace CommandSubscriptions {
             }
         });
 
-        contentMenu.text("✅ Subscribe", async (ctx) => {
+        contentMenu.text("✅ Save", async (ctx) => {
             await ActionSubscriptions.saveContentTypes(ctx, massif);
         }).row();
+
+        // Store menu for cross-registration
+        contentTypeMenus.set(massif.code, contentMenu);
 
         return contentMenu;
     }
 
+    // Getter for cross-registration with get menu
+    export function getContentTypeMenu(massifCode: number): Menu | undefined {
+        return contentTypeMenus.get(massifCode);
+    }
+
     function buildMassifMenu(mountain: string): Menu {
         const massifMenu = new Menu<Context>(`subscriptions-massifs-${mountain}`);
+
+        massifMenu.back("← Back", async (ctx) => {
+            await ctx.editMessageText(BotMessages.menuHeaders.selectRange, {parse_mode: BotMessages.parseMode}).catch(err =>
+                console.error('Error updating message text:', err)
+            );
+        }).row();
 
         massifMenu.dynamic(async (ctx, range) => {
             if (!ctx.from?.id) return;
@@ -68,18 +114,12 @@ export namespace CommandSubscriptions {
                         // Initialize content types when entering the submenu
                         ActionSubscriptions.initializeContentTypes(ctx.from.id, massif);
                         // Update message text to show massif name
-                        await ctx.editMessageText(`Select content in ${massif.name} to subscribe to`).catch(err =>
+                        await ctx.editMessageText(BotMessages.menuHeaders.chooseContent(massif.name), {parse_mode: BotMessages.parseMode}).catch(err =>
                             console.error('Error updating message text:', err)
                         );
                     }).row();
                 }
             }
-        });
-
-        massifMenu.back("← Back to mountains", async (ctx) => {
-            await ctx.editMessageText("First, select the range").catch(err =>
-                console.error('Error updating message text:', err)
-            );
         });
 
         // Register all content type submenus for this mountain
@@ -100,7 +140,7 @@ export namespace CommandSubscriptions {
             const mountains = MassifCache.getMountains();
             for (const mountain of mountains) {
                 range.submenu(mountain, `subscriptions-massifs-${mountain}`, async (ctx) => {
-                    await ctx.editMessageText(`Toggle your subscriptions in ${mountain}`).catch(err =>
+                    await ctx.editMessageText(BotMessages.menuHeaders.yourSubscriptions(mountain), {parse_mode: BotMessages.parseMode}).catch(err =>
                         console.error('Error updating message text:', err)
                     );
                 }).row();
@@ -120,16 +160,24 @@ export namespace CommandSubscriptions {
     function command(mountainMenu: Menu): (ctx: Context) => Promise<void> {
         return async (ctx: Context) => {
             if (!ctx.from?.id) {
-                await ctx.reply("Unable to identify user");
+                await ctx.reply(BotMessages.errors.unableToIdentifyUser);
                 return;
             }
-            await ctx.reply("First, select the range", {reply_markup: mountainMenu});
+            await ctx.reply(BotMessages.menuHeaders.selectRange, {reply_markup: mountainMenu, parse_mode: BotMessages.parseMode});
         };
     }
 
-    export async function attach(bot: Bot) {
+    export async function attach(bot: Bot): Promise<Menu> {
         const menu = buildMountainMenu();
         bot.use(menu);
+
+        // Also register all content type menus directly with the bot
+        // so they can be used from other menu contexts
+        for (const contentTypeMenu of contentTypeMenus.values()) {
+            bot.use(contentTypeMenu);
+        }
+
         bot.command("subscriptions", command(menu));
+        return menu;
     }
 }

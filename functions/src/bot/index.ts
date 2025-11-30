@@ -4,11 +4,15 @@ import {CommandSubscriptions} from './commands/subscriptions';
 import {MassifCache} from '@cache/MassifCache';
 import {TELEGRAM_BOT_TOKEN} from "@config/envs";
 import {BotMessages} from "@bot/messages";
+import {setupMessageLogging} from "@bot/middleware/messageLogger";
 
 export async function createBot(): Promise<Bot> {
     const bot = new Bot(TELEGRAM_BOT_TOKEN);
 
     console.log('Database setup complete');
+
+    // Setup message logging middleware
+    setupMessageLogging(bot);
 
     // Initialize massif cache
     await MassifCache.initialize();

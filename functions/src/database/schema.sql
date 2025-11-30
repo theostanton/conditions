@@ -9,7 +9,8 @@ create table massifs
 create table recipients
 (
     number varchar(12) not null
-        unique
+        unique,
+    created_at timestamp default NOW() not null
 );
 
 create table bra_subscriptions
@@ -21,6 +22,7 @@ create table bra_subscriptions
     fresh_snow  boolean default false,
     weather     boolean default false,
     last_7_days boolean default false,
+    created_at  timestamp default NOW() not null,
     UNIQUE (recipient, massif)
 );
 
@@ -89,3 +91,22 @@ CREATE INDEX IF NOT EXISTS idx_subscriptions_recipient ON bra_subscriptions (rec
 
 -- For Bulletins.getLatest() query - covering index for massif and valid_to
 CREATE INDEX IF NOT EXISTS idx_bras_massif_valid_to ON bras (massif, valid_to DESC);
+
+-- For querying by creation date
+CREATE INDEX IF NOT EXISTS idx_recipients_created_at ON recipients (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bra_subscriptions_created_at ON bra_subscriptions (created_at DESC);
+
+-- Message logs table for tracking all messages sent to the bot
+CREATE TABLE IF NOT EXISTS message_logs
+(
+    id         SERIAL PRIMARY KEY,
+    recipient  VARCHAR(12) NOT NULL,
+    timestamp  TIMESTAMP DEFAULT NOW() NOT NULL,
+    message    TEXT NOT NULL
+);
+
+-- Index for querying messages by timestamp
+CREATE INDEX IF NOT EXISTS idx_message_logs_timestamp ON message_logs (timestamp DESC);
+
+-- Index for querying messages by recipient
+CREATE INDEX IF NOT EXISTS idx_message_logs_recipient ON message_logs (recipient);

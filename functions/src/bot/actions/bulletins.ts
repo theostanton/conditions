@@ -47,7 +47,8 @@ export namespace ActionBulletins {
         contentTypes: ContentTypes
     ): Promise<void> {
         // Use centralized content delivery with specified content types
-        await ContentDeliveryService.sendWithContext(context, bulletin, massif, contentTypes);
+        // Download deliveries should show the Subscribe button
+        await ContentDeliveryService.sendWithContext(context, bulletin, massif, contentTypes, 'download');
         await Deliveries.recordDelivery(recipient, bulletin);
     }
 

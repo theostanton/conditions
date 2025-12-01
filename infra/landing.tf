@@ -80,7 +80,7 @@ resource "cloudflare_record" "plural_www" {
 # Route Worker to plural domain for redirect
 resource "cloudflare_worker_route" "plural_landing_page" {
   zone_id     = data.cloudflare_zone.plural.id
-  pattern     = "conditionsreports/cle.com/*"
+  pattern     = "conditionsreports.com/*"
   script_name = cloudflare_worker_script.landing_page.name
 }
 

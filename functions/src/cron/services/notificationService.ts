@@ -160,6 +160,7 @@ export namespace NotificationService {
         // Use subscription content types or default to bulletin only
         const contentTypes = message.subscription || { bulletin: true };
 
-        await ContentDeliveryService.sendWithBotApi(bot, message.recipient, message.bulletin, massif, contentTypes);
+        // Subscription deliveries should show the Manage Subscription button
+        await ContentDeliveryService.sendWithBotApi(bot, message.recipient, message.bulletin, massif, contentTypes, 'subscription');
     }
 }

@@ -38,7 +38,8 @@ async function sendWelcomeContent(context: Context, massif: Massif, contentTypes
 
     // Send bulletin and images if we have one
     if (bulletin && context.from?.id) {
-        await ContentDeliveryService.sendWithContext(context, bulletin, massif, contentTypes);
+        // Welcome content for new subscriptions should show the Manage Subscription button
+        await ContentDeliveryService.sendWithContext(context, bulletin, massif, contentTypes, 'subscription');
 
         // Record delivery to prevent duplicate sending on next cron run
         try {

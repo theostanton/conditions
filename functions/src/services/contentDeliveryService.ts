@@ -1,10 +1,12 @@
-import {Bot, Context, InputFile} from "grammy";
+import {Bot, Context, InputFile, InlineKeyboard} from "grammy";
 import {Bulletin, ContentTypes, Massif} from "@app-types";
 import {ImageService} from "@services/imageService";
 import {InputMediaBuilder} from "grammy";
 import {Analytics} from "@analytics/Analytics";
 
 export namespace ContentDeliveryService {
+
+    export type DeliveryType = 'download' | 'subscription';
 
     /**
      * Send bulletin PDF and images based on content types
@@ -17,27 +19,40 @@ export namespace ContentDeliveryService {
         options: {
             context?: Context,
             bot?: Bot,
-            recipient?: string
+            recipient?: string,
+            deliveryType?: DeliveryType
         }
     ): Promise<void> {
-        const {context, bot, recipient} = options;
+        const {context, bot, recipient, deliveryType} = options;
 
         // Validate we have a way to send
         if (!context && (!bot || !recipient)) {
             throw new Error('Must provide either context or (bot + recipient)');
         }
 
+        // Create inline keyboard based on delivery type
+        let keyboard: InlineKeyboard | undefined;
+        if (deliveryType === 'download') {
+            keyboard = new InlineKeyboard()
+                .text(`Subscribe to ${massif.name}`, `subscribe:${massif.code}`);
+        } else if (deliveryType === 'subscription') {
+            keyboard = new InlineKeyboard()
+                .text(`Manage Subscription to ${massif.name}`, `manage_subscription:${massif.code}`);
+        }
+
         // Send bulletin PDF if enabled
         if (contentTypes.bulletin !== false) {  // Default to true if undefined
             try {
+                const replyMarkup = keyboard ? {reply_markup: keyboard} : undefined;
+
                 if (context) {
-                    await context.replyWithDocument(bulletin.public_url);
+                    await context.replyWithDocument(bulletin.public_url, replyMarkup);
 
                     if (bulletin.valid_to < new Date()) {
                         await context.reply(`Latest bulletin for ${massif.name} is outdated`);
                     }
                 } else if (bot && recipient) {
-                    await bot.api.sendDocument(recipient, bulletin.public_url);
+                    await bot.api.sendDocument(recipient, bulletin.public_url, replyMarkup);
                 }
             } catch (error) {
                 console.error(`Failed to send bulletin PDF for ${massif.name}:`, error);
@@ -105,9 +120,10 @@ export namespace ContentDeliveryService {
         context: Context,
         bulletin: Bulletin,
         massif: Massif,
-        contentTypes: Partial<ContentTypes>
+        contentTypes: Partial<ContentTypes>,
+        deliveryType?: DeliveryType
     ): Promise<void> {
-        return sendBulletinWithContent(bulletin, massif, contentTypes, {context});
+        return sendBulletinWithContent(bulletin, massif, contentTypes, {context, deliveryType});
     }
 
     /**
@@ -118,8 +134,9 @@ export namespace ContentDeliveryService {
         recipient: string,
         bulletin: Bulletin,
         massif: Massif,
-        contentTypes: Partial<ContentTypes>
+        contentTypes: Partial<ContentTypes>,
+        deliveryType?: DeliveryType
     ): Promise<void> {
-        return sendBulletinWithContent(bulletin, massif, contentTypes, {bot, recipient});
+        return sendBulletinWithContent(bulletin, massif, contentTypes, {bot, recipient, deliveryType});
     }
 }

@@ -5,6 +5,7 @@ import {MassifCache} from '@cache/MassifCache';
 import {TELEGRAM_BOT_TOKEN} from "@config/envs";
 import {BotMessages} from "@bot/messages";
 import {setupMessageLogging} from "@bot/middleware/messageLogger";
+import {registerSubscriptionCallbacks} from "@bot/callbacks/subscriptionCallbacks";
 
 export async function createBot(): Promise<Bot> {
     const bot = new Bot(TELEGRAM_BOT_TOKEN);
@@ -16,6 +17,9 @@ export async function createBot(): Promise<Bot> {
 
     // Initialize massif cache
     await MassifCache.initialize();
+
+    // Register callback handlers
+    registerSubscriptionCallbacks(bot);
 
     // Note: bot.api.setMyCommands() has been removed from the hot path.
     // Commands only need to be set once. Run this manually when deploying:

@@ -8,6 +8,18 @@ variable "telegram_bot_token" {
   sensitive   = true
 }
 
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_account_id" {
+  description = "Cloudflare Account ID for Workers deployment"
+  type        = string
+  sensitive   = false
+}
+
 variable "analytics_bot_token" {
   description = "Analytics Bot API token"
   type        = string

@@ -94,7 +94,7 @@ export namespace CommandSubscriptions {
 
             // Batch fetch all subscription statuses to reduce database queries
             const subscriptionStatuses = await Subscriptions.getSubscriptionStatuses(
-                ctx.from.id,
+                ctx.from.id.toString(),
                 massifs.map(m => m.code)
             );
 

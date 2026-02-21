@@ -32,7 +32,7 @@ async function handleSubscribeCallback(ctx: Context): Promise<void> {
 
     try {
         // Check if already subscribed
-        const isSubscribed = await Subscriptions.isSubscribed(ctx.from.id, massifCode);
+        const isSubscribed = await Subscriptions.isSubscribed(ctx.from.id.toString(), massifCode);
 
         if (isSubscribed) {
             await ctx.answerCallbackQuery({
@@ -73,7 +73,7 @@ async function handleManageSubscriptionCallback(ctx: Context): Promise<void> {
 
     try {
         // Get current subscription
-        const subscription = await Subscriptions.getSubscription(ctx.from.id, massifCode);
+        const subscription = await Subscriptions.getSubscription(ctx.from.id.toString(), massifCode);
 
         if (!subscription) {
             await ctx.answerCallbackQuery({
@@ -259,7 +259,7 @@ async function handleSubscribeSave(ctx: Context): Promise<void> {
         const contentTypes = ActionSubscriptions.getContentTypes(ctx.from.id, massif);
 
         // Subscribe with selected content types
-        await Subscriptions.subscribe(ctx.from.id, massif, contentTypes);
+        await Subscriptions.subscribe(ctx.from.id.toString(), massif, contentTypes);
 
         // Clear temporary selection
         ActionSubscriptions.clearContentTypes(ctx.from.id, massif);
@@ -304,7 +304,7 @@ async function handleManageSave(ctx: Context): Promise<void> {
         const contentTypes = managementSelections.get(key) || {};
 
         // Update subscription with new content types
-        await Subscriptions.updateContentTypes(ctx.from.id, massif.code, contentTypes);
+        await Subscriptions.updateContentTypes(ctx.from.id.toString(), massif.code, contentTypes);
 
         // Clear temporary selection
         managementSelections.delete(key);
@@ -346,7 +346,7 @@ async function handleManageUnsubscribe(ctx: Context): Promise<void> {
 
     try {
         // Unsubscribe from the massif
-        await Subscriptions.unsubscribe(ctx.from.id, massif);
+        await Subscriptions.unsubscribe(ctx.from.id.toString(), massif);
 
         // Clear temporary selection
         const key = getManagementKey(ctx.from.id, massif.code);

@@ -54,3 +54,20 @@ variable "db_authorized_networks" {
   type        = map(string)
   sensitive   = true
 }
+
+variable "wa_phone_number_id" {
+  description = "WhatsApp Cloud API phone number ID"
+  type        = string
+}
+
+variable "wa_access_token" {
+  description = "WhatsApp Cloud API access token"
+  type        = string
+  sensitive   = true
+}
+
+variable "wa_verify_token" {
+  description = "WhatsApp webhook verification token"
+  type        = string
+  sensitive   = true
+}

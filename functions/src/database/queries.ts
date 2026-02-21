@@ -1,5 +1,5 @@
 import {getClient} from "@config/database";
-import {BulletinInfos, Subscription} from "@app-types";
+import {BulletinInfos, Platform, Subscription} from "@app-types";
 import {Analytics} from "@analytics/Analytics";
 
 type SubscriptionRow = {
@@ -8,11 +8,12 @@ type SubscriptionRow = {
 }
 
 export namespace Database {
-    export async function getMassifsWithSubscribers(): Promise<number[]> {
+    export async function getMassifsWithSubscribers(platform: Platform = 'telegram'): Promise<number[]> {
         try {
             const client = await getClient();
             const result = await client.query<Pick<BulletinInfos, "massif">>(
-                "select concat(massif) as massif from bra_subscriptions group by massif"
+                "select concat(massif) as massif from bra_subscriptions where platform = $1 group by massif",
+                [platform]
             );
             return [...result].map(s => s.massif);
         } catch (error) {
@@ -25,10 +26,11 @@ export namespace Database {
         }
     }
 
-    export async function getTotalSubscribers(): Promise<number> {
+    export async function getTotalSubscribers(platform: Platform = 'telegram'): Promise<number> {
         const client = await getClient();
         const result = await client.query<{ count: number }>(
-            "select count(distinct(recipient)) as count from bra_subscriptions"
+            "select count(distinct(recipient)) as count from bra_subscriptions where platform = $1",
+            [platform]
         );
         return [...result][0].count
     }
@@ -130,13 +132,15 @@ export namespace Database {
         }
     }
 
-    export async function getSubscriptionsByMassif(): Promise<SubscriptionRow[]> {
+    export async function getSubscriptionsByMassif(platform: Platform = 'telegram'): Promise<SubscriptionRow[]> {
         try {
             const client = await getClient();
             const result = await client.query<SubscriptionRow>(
                 `select s.massif as massif, string_agg(s.recipient, ',') as recipients
                  from bra_subscriptions as s
-                 group by s.massif;`
+                 where s.platform = $1
+                 group by s.massif;`,
+                [platform]
             );
             return [...result];
         } catch (error) {
@@ -149,23 +153,24 @@ export namespace Database {
         }
     }
 
-    export async function getSubscriptionsByRecipients(recipients: string[], massif: number): Promise<Subscription[]> {
+    export async function getSubscriptionsByRecipients(recipients: string[], massif: number, platform: Platform = 'telegram'): Promise<Subscription[]> {
         if (recipients.length === 0) {
             return [];
         }
 
         const client = await getClient();
-        const placeholders = recipients.map((_, i) => `$${i + 2}`).join(',');
+        const placeholders = recipients.map((_, i) => `$${i + 3}`).join(',');
         const result = await client.query(
-            `SELECT recipient, massif, bulletin, snow_report, fresh_snow, weather, last_7_days, rose_pentes, montagne_risques
+            `SELECT recipient, massif, platform, bulletin, snow_report, fresh_snow, weather, last_7_days, rose_pentes, montagne_risques
              FROM bra_subscriptions
-             WHERE massif = $1 AND recipient::text IN (${placeholders})`,
-            [massif, ...recipients]
+             WHERE massif = $1 AND platform = $2 AND recipient IN (${placeholders})`,
+            [massif, platform, ...recipients]
         );
 
         return result.rows.map(row => ({
-            recipient: row.get('recipient') as number,
+            recipient: row.get('recipient') as string,
             massif: row.get('massif') as number,
+            platform: row.get('platform') as Platform,
             bulletin: row.get('bulletin') as boolean,
             snow_report: row.get('snow_report') as boolean,
             fresh_snow: row.get('fresh_snow') as boolean,

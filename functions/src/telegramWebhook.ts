@@ -20,7 +20,7 @@ async function initBot() {
     return bot;
 }
 
-export async function botWebhook(req: Request, res: Response) {
+export async function telegramWebhook(req: Request, res: Response) {
     try {
         // Initialize bot on first request (cold start)
         await initBot();

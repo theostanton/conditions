@@ -87,7 +87,7 @@ export namespace ActionSubscriptions {
             const contentTypes = contentTypeSelections.get(key) || { bulletin: true };
 
             // Subscribe or update with the selected content types
-            await Subscriptions.subscribe(recipientId, massif, contentTypes);
+            await Subscriptions.subscribe(recipientId.toString(), massif, contentTypes);
 
             // Clear the temporary selection
             clearContentTypes(recipientId, massif);
@@ -147,7 +147,7 @@ export namespace ActionSubscriptions {
             const recipientId = context.from.id;
 
             // Unsubscribe
-            await Subscriptions.unsubscribe(recipientId, massif);
+            await Subscriptions.unsubscribe(recipientId.toString(), massif);
 
             // Clear any temporary selections
             clearContentTypes(recipientId, massif);

@@ -1,5 +1,6 @@
 import {BulletinService} from "@services/bulletinService";
 import {NotificationService} from "./services/notificationService";
+import {WhatsappNotificationService} from "@whatsapp/services/notificationService";
 import {setupDatabase, closeConnection} from "@config/database";
 import {Database} from "@database/queries";
 import {CronExecutions, type CronExecution} from "@database/models/CronExecutions";
@@ -62,11 +63,21 @@ export default async function () {
             const destinations = await NotificationService.generateSubscriptionDestinations(validBulletins);
             console.log(`destinations=${JSON.stringify(destinations)}`);
 
-            // Send to subscribers
-            stage = 'send'
-            execution.bulletins_delivered_count = await NotificationService.send(destinations);
+            // Send to Telegram subscribers
+            stage = 'telegramSend'
+            const telegramDelivered = await NotificationService.send(destinations);
 
-            execution.summary = `Deliveries made. ${newBulletinsSummary}`;
+            // WhatsApp delivery
+            stage = 'whatsappGenerateDestinations'
+            const whatsappDestinations = await WhatsappNotificationService.generateSubscriptionDestinations(validBulletins);
+            console.log(`whatsappDestinations=${JSON.stringify(whatsappDestinations)}`);
+
+            stage = 'whatsappSend'
+            const whatsappDelivered = await WhatsappNotificationService.send(whatsappDestinations);
+
+            execution.bulletins_delivered_count = telegramDelivered + whatsappDelivered;
+
+            execution.summary = `Deliveries made (telegram:${telegramDelivered}, whatsapp:${whatsappDelivered}). ${newBulletinsSummary}`;
         } else {
             execution.bulletins_delivered_count = 0
             execution.summary = `No deliveries necessary. ${newBulletinsSummary}`;

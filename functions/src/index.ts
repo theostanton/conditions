@@ -1,3 +1,4 @@
 // Re-export all Cloud Function entry points
-export {botWebhook} from './botWebhook';
+export {telegramWebhook} from './telegramWebhook';
 export {cronEndpoint} from './cronEndpoint';
+export {whatsappWebhook} from './whatsappWebhook';

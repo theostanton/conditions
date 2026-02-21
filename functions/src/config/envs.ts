@@ -13,3 +13,7 @@ export const PGHOST = process.env.PGHOST as string;
 export const PGDATABASE = process.env.PGDATABASE as string;
 export const PGUSER = process.env.PGUSER as string;
 export const PGPASSWORD = process.env.PGPASSWORD as string;
+
+export const WA_PHONE_NUMBER_ID = process.env.WA_PHONE_NUMBER_ID as string;
+export const WA_ACCESS_TOKEN = process.env.WA_ACCESS_TOKEN as string;
+export const WA_VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN as string;

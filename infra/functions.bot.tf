@@ -5,7 +5,7 @@ resource "google_cloudfunctions2_function" "webhook" {
   project    = local.project_id
 
   build_config {
-    entry_point = "botWebhook"
+    entry_point = "telegramWebhook"
     runtime     = "nodejs20"
     source {
       storage_source {

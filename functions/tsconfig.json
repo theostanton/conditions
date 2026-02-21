@@ -22,7 +22,8 @@
       "@app-types": ["types/index"],
       "@utils/*": ["utils/*"],
       "@analytics/*": ["analytics/*"],
-      "@constants/*": ["constants/*"]
+      "@constants/*": ["constants/*"],
+      "@whatsapp/*": ["whatsapp/*"]
     }
   },
   "compileOnSave": true,

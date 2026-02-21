@@ -15,6 +15,8 @@ export type Massif = {
 
 export type BulletinInfos = Pick<Bulletin, "massif" | "valid_from" | "valid_to" | "risk_level">
 
+export type Platform = 'telegram' | 'whatsapp';
+
 export type BulletinDestination = {
     recipients: string[],
     massif: number,
@@ -36,6 +38,7 @@ export type ContentTypes = {
 }
 
 export type Subscription = {
-    recipient: number,
+    recipient: string,
     massif: number,
+    platform: Platform,
 } & ContentTypes

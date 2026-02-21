@@ -25,15 +25,17 @@ resource "google_cloudfunctions2_function" "cron" {
     timeout_seconds    = 240     # Monitor actual duration - may be able to reduce
     max_instance_count = 1       # Only one cron execution should run at a time
     environment_variables = {
-      TELEGRAM_BOT_TOKEN = var.telegram_bot_token
+      TELEGRAM_BOT_TOKEN  = var.telegram_bot_token
       ANALYTICS_BOT_TOKEN = var.analytics_bot_token
-      PGHOST             = "/cloudsql/${google_sql_database_instance.instance.connection_name}"
-      PGDATABASE         = var.db_database
-      PGUSER             = local.db_user
-      PGPASSWORD         = var.db_password
-      METEOFRANCE_TOKEN  = var.meteofrance_token
-      GOOGLE_PROJECT_ID  = local.project_id
-      ADMIN_CHAT_ID      = var.admin_chat_id
+      PGHOST              = "/cloudsql/${google_sql_database_instance.instance.connection_name}"
+      PGDATABASE          = var.db_database
+      PGUSER              = local.db_user
+      PGPASSWORD          = var.db_password
+      METEOFRANCE_TOKEN   = var.meteofrance_token
+      GOOGLE_PROJECT_ID   = local.project_id
+      ADMIN_CHAT_ID       = var.admin_chat_id
+      WA_PHONE_NUMBER_ID  = var.wa_phone_number_id
+      WA_ACCESS_TOKEN     = var.wa_access_token
     }
   }
 

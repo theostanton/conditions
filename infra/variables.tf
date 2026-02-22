@@ -71,3 +71,9 @@ variable "wa_verify_token" {
   type        = string
   sensitive   = true
 }
+
+variable "google_maps_api_key" {
+  description = "Google Maps Geocoding API key"
+  type        = string
+  sensitive   = true
+}

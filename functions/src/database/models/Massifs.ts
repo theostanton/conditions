@@ -14,7 +14,7 @@ export namespace Massifs {
 
     export async function getAll(): Promise<Massif[]> {
         const client = await getClient();
-        const result = await client.query<Massif>("SELECT name,code,mountain FROM massifs ORDER BY name");
+        const result = await client.query<Massif>("SELECT name, code, mountain, geometry FROM massifs ORDER BY name");
         return [...result];
     }
 

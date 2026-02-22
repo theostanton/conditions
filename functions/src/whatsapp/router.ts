@@ -1,18 +1,14 @@
-import {ContentTypes} from "@app-types";
 import {MassifCache} from "@cache/MassifCache";
 import {WhatsAppClient} from "@whatsapp/client";
-import {DownloadFlow} from "@whatsapp/flows/download";
-import {SubscribeFlow} from "@whatsapp/flows/subscribe";
-import {Subscriptions} from "@database/models/Subscriptions";
+import {BulletinFlow} from "@whatsapp/flows/bulletin";
 import type {WAWebhookPayload, WAMessage} from "@whatsapp/types";
 import {Analytics} from "@analytics/Analytics";
+import {geocode} from "@utils/geocode";
+import {GeocodeCache} from "@database/models/GeocodeCache";
 
 export interface ConversationState {
-    step: 'idle' | 'select_mountain' | 'select_massif' | 'select_content' | 'select_sub_content';
-    action?: 'download' | 'subscribe';
+    step: 'idle' | 'select_mountain' | 'select_massif';
     mountain?: string;
-    massifCode?: number;
-    contentTypes?: Partial<ContentTypes>;
     lastActivity: number;
 }
 
@@ -47,24 +43,10 @@ function cleanupStaleStates(): void {
 }
 
 async function sendWelcome(to: string): Promise<void> {
-    await WhatsAppClient.sendReplyButtons(
-        to,
-        'Welcome to Conditions! I can send you French avalanche bulletins from Météo France.\n\nWhat would you like to do?',
-        [
-            {id: 'menu:download', title: 'Download'},
-            {id: 'menu:subscribe', title: 'Subscribe'},
-            {id: 'menu:help', title: 'Help'},
-        ],
-    );
-}
-
-async function sendHelp(to: string): Promise<void> {
+    Analytics.send(`WA ${to} welcome`).catch(console.error);
     await WhatsAppClient.sendText(
         to,
-        '📋 *Conditions Bot Help*\n\n'
-        + '*Download* — Get the latest avalanche bulletin for any massif.\n\n'
-        + '*Subscribe* — Receive automatic bulletin updates when new conditions are published.\n\n'
-        + 'Send any message to return to the main menu.',
+        "🏔️ Welcome to Conditions!\n\nShare your location with me using the '+' button below, or send me the name of the massif you're interested in, and I'll send you the bulletin.",
     );
 }
 
@@ -73,7 +55,6 @@ export namespace WhatsAppRouter {
     export async function handleWebhook(payload: WAWebhookPayload): Promise<void> {
         if (payload.object !== 'whatsapp_business_account') return;
 
-        // Periodic cleanup of stale conversation states
         cleanupStaleStates();
 
         for (const entry of payload.entry) {
@@ -105,13 +86,12 @@ export namespace WhatsAppRouter {
     async function handleMessage(message: WAMessage): Promise<void> {
         const from = message.from;
 
-        // Mark as read
-        await WhatsAppClient.markAsRead(message.id).catch(() => {});
+        // Mark as read — fire and forget
+        WhatsAppClient.markAsRead(message.id).catch(() => {});
 
-        // Handle text messages
-        if (message.type === 'text') {
-            clearState(from);
-            await sendWelcome(from);
+        // Handle location messages
+        if (message.type === 'location' && message.location) {
+            await handleLocation(from, message.location.latitude, message.location.longitude);
             return;
         }
 
@@ -125,218 +105,192 @@ export namespace WhatsAppRouter {
             return;
         }
 
-        // For any other message type, show welcome
+        // Handle text messages as massif search
+        if (message.type === 'text' && message.text?.body) {
+            clearState(from);
+            await handleTextSearch(from, message.text.body, message.id);
+            return;
+        }
+
+        // Any other message type → welcome
         clearState(from);
         await sendWelcome(from);
+    }
+
+    async function handleTextSearch(from: string, query: string, messageId: string): Promise<void> {
+        // React immediately so the user knows we're working on it
+        WhatsAppClient.react(from, messageId, '🔍').catch(() => {});
+
+        const matches = MassifCache.searchByName(query);
+
+        if (matches.length === 0) {
+            const body = `You can either\n* share your current location with me using the '+' button\n* send me the name of a place\n* browse the full list of massifs`;
+
+            // No massif name match — check geocode cache, then fall back to API
+            const reactTo = {messageId};
+            const cached = await GeocodeCache.lookup(query);
+            if (cached) {
+                const massif = MassifCache.findByCode(cached.massifCode);
+                Analytics.send(`WA ${from} search: "${query}" → ${massif?.name ?? cached.massifCode} (cached geocode)`).catch(console.error);
+                await BulletinFlow.deliverAndPromptSubscribe(from, cached.massifCode, query, reactTo);
+                return;
+            }
+
+            const location = await geocode(query);
+            if (location) {
+                const massif = MassifCache.findByLocation(location.lat, location.lng);
+                if (massif) {
+                    // Cache for future lookups
+                    GeocodeCache.store(query, massif.code, location.lat, location.lng).catch(console.error);
+                    Analytics.send(`WA ${from} search: "${query}" → ${massif.name} (geocoded)`).catch(console.error);
+                    await BulletinFlow.deliverAndPromptSubscribe(from, massif.code, query, reactTo);
+                } else{
+                    Analytics.send(`WA ${from} search: "${query}" → no massif (geocoded but outside coverage)`).catch(console.error);
+                    WhatsAppClient.react(from, messageId, '').catch(() => {});
+                    await WhatsAppClient.sendReplyButtons(
+                        from,
+                        `${query} doesn't appear to be in a massif.\n${body}`,
+                        [
+                            {id: 'menu:browse', title: '🗺️ Browse all massifs'},
+                        ],
+                    );
+                }
+            } else{
+                Analytics.send(`WA ${from} search: "${query}" → no result`).catch(console.error);
+                WhatsAppClient.react(from, messageId, '').catch(() => {});
+                await WhatsAppClient.sendReplyButtons(
+                    from,
+                    `I couldn't find a match for "${query}".\n${body}`,
+                    [
+                        {id: 'menu:browse', title: '🗺️ Browse all massifs'},
+                    ],
+                );
+            }
+            return;
+        }
+
+        if (matches.length === 1) {
+            Analytics.send(`WA ${from} search: "${query}" → ${matches[0].name} (massif name)`).catch(console.error);
+            await BulletinFlow.deliverAndPromptSubscribe(from, matches[0].code, undefined, {messageId});
+            return;
+        }
+
+        Analytics.send(`WA ${from} search: "${query}" → ${matches.length} matches`).catch(console.error);
+        // Multiple matches — let the user pick
+        if (matches.length <= 3) {
+            await WhatsAppClient.sendReplyButtons(
+                from,
+                `I found ${matches.length} massifs matching "${query}". Which one?`,
+                matches.map(m => ({id: `br:mas:${m.code}`, title: m.name.substring(0, 20)})),
+            );
+        } else {
+            const rows = matches.slice(0, 10).map(m => ({
+                id: `br:mas:${m.code}`,
+                title: m.name.substring(0, 24),
+            }));
+            await WhatsAppClient.sendListMessage(
+                from,
+                `I found ${matches.length} massifs matching "${query}". Which one?`,
+                'Select massif',
+                [{title: 'Results', rows}],
+            );
+        }
+
+        // Clear search reaction for non-delivery paths (delivery clears its own)
+        WhatsAppClient.react(from, messageId, '').catch(() => {});
+    }
+
+    async function handleLocation(from: string, lat: number, lng: number): Promise<void> {
+        const massif = MassifCache.findByLocation(lat, lng);
+
+        if (!massif) {
+            await WhatsAppClient.sendReplyButtons(
+                from,
+                "I couldn't find a massif at your location. You might be outside the covered areas.\n\nTry sending a massif name or browse the list.",
+                [
+                    {id: 'menu:browse', title: '🗺️ Browse massifs'},
+                ],
+            );
+            return;
+        }
+
+        clearState(from);
+        await BulletinFlow.deliverAndPromptSubscribe(from, massif.code);
     }
 
     async function handleCallback(from: string, callbackId: string): Promise<void> {
-        // Menu buttons
-        if (callbackId === 'menu:download') {
-            const newState = await DownloadFlow.showMountains(from);
+        // Browse massifs (from "no match" fallback)
+        if (callbackId === 'menu:browse') {
+            const newState = await BulletinFlow.showMountains(from);
             setState(from, newState);
             return;
         }
 
-        if (callbackId === 'menu:subscribe') {
-            const newState = await SubscribeFlow.showMountains(from);
-            setState(from, newState);
-            return;
-        }
-
-        if (callbackId === 'menu:help') {
-            clearState(from);
-            await sendHelp(from);
-            return;
-        }
-
-        // Cancel
-        if (callbackId === 'sub:cancel') {
-            clearState(from);
-            await sendWelcome(from);
-            return;
-        }
-
-        // Quick subscribe from download flow prompt
-        if (callbackId.startsWith('sub_quick:')) {
-            const value = callbackId.substring('sub_quick:'.length);
-            if (value === 'no') {
-                clearState(from);
-                return;
-            }
+        // Subscribe after bulletin delivery
+        if (callbackId.startsWith('sub:')) {
+            const value = callbackId.substring('sub:'.length);
             const massifCode = parseInt(value, 10);
             if (!isNaN(massifCode)) {
-                const newState = await SubscribeFlow.subscribeAll(from, massifCode);
+                await BulletinFlow.subscribe(from, massifCode);
+            }
+            clearState(from);
+            return;
+        }
+
+        // Unsubscribe (from cron delivery)
+        if (callbackId.startsWith('unsub:')) {
+            const massifCode = parseInt(callbackId.substring('unsub:'.length), 10);
+            if (!isNaN(massifCode)) {
+                await BulletinFlow.unsubscribe(from, massifCode);
+            }
+            clearState(from);
+            return;
+        }
+
+        // Browse flow: mountain selection
+        if (callbackId.startsWith('br:mtn:')) {
+            const mountain = callbackId.substring('br:mtn:'.length);
+            const newState = await BulletinFlow.showMassifs(from, mountain);
+            setState(from, newState);
+            return;
+        }
+
+        // Browse flow: mountain pagination
+        if (callbackId.startsWith('br:mtnpage:')) {
+            const page = parseInt(callbackId.substring('br:mtnpage:'.length), 10);
+            if (!isNaN(page)) {
+                const newState = await BulletinFlow.showMountains(from, page);
                 setState(from, newState);
             }
             return;
         }
 
-        // Download flow callbacks (dl:...)
-        if (callbackId.startsWith('dl:')) {
-            await handleDownloadCallback(from, callbackId);
+        // Browse flow: massif selection → deliver bulletin
+        if (callbackId.startsWith('br:mas:')) {
+            const massifCode = parseInt(callbackId.substring('br:mas:'.length), 10);
+            if (!isNaN(massifCode)) {
+                clearState(from);
+                await BulletinFlow.deliverAndPromptSubscribe(from, massifCode);
+            }
             return;
         }
 
-        // Subscribe flow callbacks (sub:...)
-        if (callbackId.startsWith('sub:')) {
-            await handleSubscribeCallback(from, callbackId);
+        // Browse flow: massif pagination
+        if (callbackId.startsWith('br:maspage:')) {
+            // Format: br:maspage:{mountain}:{page}
+            const rest = callbackId.substring('br:maspage:'.length);
+            const lastColon = rest.lastIndexOf(':');
+            const mountain = rest.substring(0, lastColon);
+            const page = parseInt(rest.substring(lastColon + 1), 10);
+            if (!isNaN(page) && mountain) {
+                const newState = await BulletinFlow.showMassifs(from, mountain, page);
+                setState(from, newState);
+            }
             return;
         }
 
-        // Unknown callback
+        // Unknown callback → welcome
         clearState(from);
         await sendWelcome(from);
-    }
-
-    async function handleDownloadCallback(from: string, callbackId: string): Promise<void> {
-        const parts = callbackId.split(':');
-        const subtype = parts[1]; // mtn, mas, cnt, mtnpage, maspage
-        const value = parts.slice(2).join(':');
-
-        if (subtype === 'mtn') {
-            const newState = await DownloadFlow.showMassifs(from, value);
-            setState(from, newState);
-            return;
-        }
-
-        if (subtype === 'mtnpage') {
-            const page = parseInt(value, 10);
-            if (!isNaN(page)) {
-                const newState = await DownloadFlow.showMountains(from, page);
-                setState(from, newState);
-            }
-            return;
-        }
-
-        if (subtype === 'mas') {
-            const massifCode = parseInt(value, 10);
-            if (!isNaN(massifCode)) {
-                const newState = await DownloadFlow.showContentTypes(from, massifCode);
-                setState(from, newState);
-            }
-            return;
-        }
-
-        if (subtype === 'maspage') {
-            // Format: dl:maspage:{mountain}:{page}
-            const page = parseInt(parts[parts.length - 1], 10);
-            const mountain = parts.slice(2, parts.length - 1).join(':');
-            if (!isNaN(page) && mountain) {
-                const newState = await DownloadFlow.showMassifs(from, mountain, page);
-                setState(from, newState);
-            }
-            return;
-        }
-
-        if (subtype === 'cnt') {
-            const state = getState(from);
-            if (state.massifCode) {
-                const newState = await DownloadFlow.deliver(from, state.massifCode, value);
-                setState(from, newState);
-            }
-            return;
-        }
-    }
-
-    async function handleSubscribeCallback(from: string, callbackId: string): Promise<void> {
-        const parts = callbackId.split(':');
-        const subtype = parts[1]; // mtn, mas, all, choose, toggle, done, unsub, manage, mtnpage, maspage
-        const value = parts.slice(2).join(':');
-
-        if (subtype === 'mtn') {
-            const newState = await SubscribeFlow.showMassifs(from, value);
-            setState(from, newState);
-            return;
-        }
-
-        if (subtype === 'mtnpage') {
-            const page = parseInt(value, 10);
-            if (!isNaN(page)) {
-                const newState = await SubscribeFlow.showMountains(from, page);
-                setState(from, newState);
-            }
-            return;
-        }
-
-        if (subtype === 'maspage') {
-            // Format: sub:maspage:{mountain}:{page}
-            const page = parseInt(parts[parts.length - 1], 10);
-            const mountain = parts.slice(2, parts.length - 1).join(':');
-            if (!isNaN(page) && mountain) {
-                const newState = await SubscribeFlow.showMassifs(from, mountain, page);
-                setState(from, newState);
-            }
-            return;
-        }
-
-        if (subtype === 'mas') {
-            const massifCode = parseInt(value, 10);
-            if (!isNaN(massifCode)) {
-                const newState = await SubscribeFlow.showMassifActions(from, massifCode);
-                setState(from, newState);
-            }
-            return;
-        }
-
-        if (subtype === 'all') {
-            const massifCode = parseInt(value, 10);
-            if (!isNaN(massifCode)) {
-                const newState = await SubscribeFlow.subscribeAll(from, massifCode);
-                setState(from, newState);
-            }
-            return;
-        }
-
-        if (subtype === 'choose') {
-            const massifCode = parseInt(value, 10);
-            if (!isNaN(massifCode)) {
-                const newState = await SubscribeFlow.showContentTypeSelection(from, massifCode);
-                setState(from, newState);
-            }
-            return;
-        }
-
-        if (subtype === 'toggle') {
-            // Format: sub:toggle:{massifCode}:{contentKey}
-            const massifCode = parseInt(parts[2], 10);
-            const contentKey = parts[3];
-            if (!isNaN(massifCode) && contentKey) {
-                const state = getState(from);
-                const currentTypes = state.contentTypes || {bulletin: true};
-                const newState = await SubscribeFlow.toggleContentType(from, massifCode, contentKey, currentTypes);
-                setState(from, newState);
-            }
-            return;
-        }
-
-        if (subtype === 'done') {
-            const massifCode = parseInt(value, 10);
-            if (!isNaN(massifCode)) {
-                const state = getState(from);
-                const contentTypes = state.contentTypes || {bulletin: true};
-                const newState = await SubscribeFlow.saveSubscription(from, massifCode, contentTypes);
-                setState(from, newState);
-            }
-            return;
-        }
-
-        if (subtype === 'unsub') {
-            const massifCode = parseInt(value, 10);
-            if (!isNaN(massifCode)) {
-                const newState = await SubscribeFlow.unsubscribe(from, massifCode);
-                setState(from, newState);
-            }
-            return;
-        }
-
-        if (subtype === 'manage') {
-            const massifCode = parseInt(value, 10);
-            if (!isNaN(massifCode)) {
-                const newState = await SubscribeFlow.manageSubscription(from, massifCode);
-                setState(from, newState);
-            }
-            return;
-        }
     }
 }

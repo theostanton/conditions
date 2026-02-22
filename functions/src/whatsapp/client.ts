@@ -141,6 +141,18 @@ export namespace WhatsAppClient {
         return response.data.id;
     }
 
+    export async function react(to: string, messageId: string, emoji: string): Promise<void> {
+        await api.post('/messages', {
+            messaging_product: 'whatsapp',
+            to,
+            type: 'reaction',
+            reaction: {
+                message_id: messageId,
+                emoji,
+            },
+        });
+    }
+
     export async function markAsRead(messageId: string): Promise<void> {
         await api.post('/messages', {
             messaging_product: 'whatsapp',

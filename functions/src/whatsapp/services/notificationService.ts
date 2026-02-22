@@ -4,6 +4,7 @@ import {Deliveries} from "@database/models/Deliveries";
 import {ArrayUtils} from "@utils/array";
 import {AsyncUtils} from "@utils/async";
 import {WhatsAppDelivery} from "@whatsapp/flows/delivery";
+import {WhatsAppClient} from "@whatsapp/client";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
 
@@ -148,6 +149,15 @@ export namespace WhatsappNotificationService {
             message.bulletin,
             massif,
             contentTypes,
+        );
+
+        // Offer unsubscribe option after cron delivery
+        await WhatsAppClient.sendReplyButtons(
+            message.recipient,
+            `Bulletin update for ${massif.name}.`,
+            [
+                {id: `unsub:${message.massif}`, title: 'Unsubscribe'},
+            ],
         );
     }
 }

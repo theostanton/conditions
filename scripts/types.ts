@@ -3,6 +3,7 @@ export interface MassifRow {
   code: number
   departement?: string
   mountain?: string
+  geometry?: object
 }
 
 export interface BraSubscription {

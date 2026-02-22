@@ -54,15 +54,4 @@ export namespace WhatsAppDelivery {
             }
         }
     }
-
-    export async function sendSubscriptionPrompt(to: string, massif: Massif): Promise<void> {
-        await WhatsAppClient.sendReplyButtons(
-            to,
-            `Want to receive automatic updates for ${massif.name}?`,
-            [
-                {id: `sub_quick:${massif.code}`, title: 'Subscribe'},
-                {id: 'sub_quick:no', title: 'No thanks'},
-            ],
-        );
-    }
 }

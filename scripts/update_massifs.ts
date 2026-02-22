@@ -10,6 +10,7 @@ interface MassifsResponse {
 
 interface Massif {
   properties: MassifProperties
+  geometry?: object
 }
 
 interface MassifProperties {
@@ -26,30 +27,48 @@ async function fetchRegions(): Promise<MassifRow[]> {
     {headers: headers}
   )
 
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}: ${await response.text()}`);
+  }
+
   const data: MassifsResponse = await response.json();
 
-  return data.features.map<MassifRow>(feature => ({
+  if (!data.features) {
+    console.error('API response structure:', JSON.stringify(data).substring(0, 500));
+    throw new Error('No features in API response');
+  }
+
+  const massifs = data.features.map<MassifRow>(feature => ({
     code: feature.properties.code,
     name: feature.properties.title,
     departement: feature.properties.Departement,
-    mountain: feature.properties.mountain
-  }))
+    mountain: feature.properties.mountain,
+    geometry: feature.geometry,
+  }));
+
+  const withoutGeometry = massifs.filter(m => !m.geometry);
+  if (withoutGeometry.length > 0) {
+    console.warn(`${withoutGeometry.length} massifs have no geometry:`, withoutGeometry.map(m => m.name).join(', '));
+  }
+
+  return massifs;
 }
 
 async function insert(massifs: MassifRow[]): Promise<void> {
 
   const client = await database()
 
-  const values: [number, string, string | undefined, string | undefined][] = massifs.map(massif => [
+  const values = massifs.map(massif => [
     massif.code,
     massif.name,
     massif.departement,
-    massif.mountain
+    massif.mountain,
+    massif.geometry ? JSON.stringify(massif.geometry) : null,
   ])
 
   try {
     await client.query(format(
-      'INSERT INTO massifs (code, name, departement, mountain) VALUES %L ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, departement = EXCLUDED.departement, mountain = EXCLUDED.mountain',
+      'INSERT INTO massifs (code, name, departement, mountain, geometry) VALUES %L ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, departement = EXCLUDED.departement, mountain = EXCLUDED.mountain, geometry = EXCLUDED.geometry::jsonb',
       values
     ))
   } catch (err) {

@@ -5,19 +5,13 @@ import {WA_VERIFY_TOKEN} from "@config/whatsapp";
 import {WhatsAppRouter} from "@whatsapp/router";
 import type {WAWebhookPayload} from "@whatsapp/types";
 
-let initialized = false;
-
-async function init() {
-    if (!initialized) {
-        console.log('Setting up database');
-        await setupDatabase();
-
-        console.log('Initializing massif cache');
-        await MassifCache.initialize();
-
-        initialized = true;
-    }
-}
+// Initialize DB + cache eagerly at instance boot (not on first request)
+const ready = (async () => {
+    console.log('Setting up database');
+    await setupDatabase();
+    console.log('Initializing massif cache');
+    await MassifCache.initialize();
+})();
 
 export async function whatsappWebhook(req: Request, res: Response) {
     // GET = webhook verification from Meta
@@ -41,7 +35,7 @@ export async function whatsappWebhook(req: Request, res: Response) {
     res.status(200).send('OK');
 
     try {
-        await init();
+        await ready;
 
         const payload = req.body as WAWebhookPayload;
         await WhatsAppRouter.handleWebhook(payload);

@@ -32,12 +32,18 @@ export interface WAMessage {
     from: string;
     id: string;
     timestamp: string;
-    type: 'text' | 'interactive' | 'image' | 'document' | 'button';
+    type: 'text' | 'interactive' | 'image' | 'document' | 'button' | 'location';
     text?: { body: string };
     interactive?: {
         type: 'list_reply' | 'button_reply';
         list_reply?: { id: string; title: string };
         button_reply?: { id: string; title: string };
+    };
+    location?: {
+        latitude: number;
+        longitude: number;
+        name?: string;
+        address?: string;
     };
 }
 

@@ -7,10 +7,15 @@ export type Bulletin = {
     risk_level?: number,
 }
 
+export type GeoJSONGeometry =
+    | { type: 'Polygon'; coordinates: number[][][] }
+    | { type: 'MultiPolygon'; coordinates: number[][][][] };
+
 export type Massif = {
     name: string,
     code: number,
-    mountain?: string
+    mountain?: string,
+    geometry?: GeoJSONGeometry,
 }
 
 export type BulletinInfos = Pick<Bulletin, "massif" | "valid_from" | "valid_to" | "risk_level">

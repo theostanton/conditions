@@ -33,6 +33,7 @@ resource "google_cloudfunctions2_function" "whatsapp_webhook" {
       METEOFRANCE_TOKEN   = var.meteofrance_token
       GOOGLE_PROJECT_ID   = local.project_id
       ADMIN_CHAT_ID       = var.admin_chat_id
+      GOOGLE_MAPS_API_KEY = var.google_maps_api_key
     }
   }
 

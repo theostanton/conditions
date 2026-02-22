@@ -1,5 +1,6 @@
 import type {Massif} from "@app-types";
 import {Massifs} from "@database/models/Massifs";
+import {pointInGeometry} from "@utils/geo";
 
 export namespace MassifCache {
 
@@ -49,4 +50,34 @@ export namespace MassifCache {
     export function findByName(name: string): Massif | undefined {
         return allMassifs.find(m => m.name === name);
     }
+
+    export function findByLocation(lat: number, lng: number): Massif | undefined {
+        return allMassifs.find(m =>
+            m.geometry && pointInGeometry([lng, lat], m.geometry)
+        );
+    }
+
+    export function searchByName(query: string): Massif[] {
+        const normalized = normalize(query);
+        if (normalized.length < 2) return [];
+
+        // Exact normalized match first
+        const exact = allMassifs.find(m => normalize(m.name) === normalized);
+        if (exact) return [exact];
+
+        // Substring match: query in massif name or massif name in query
+        return allMassifs.filter(m => {
+            const name = normalize(m.name);
+            return name.includes(normalized) || normalized.includes(name);
+        });
+    }
+}
+
+function normalize(str: string): string {
+    return str
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
+        .replace(/[-_]/g, ' ')                             // hyphens to spaces
+        .replace(/\s+/g, ' ')                              // collapse whitespace
+        .trim();
 }

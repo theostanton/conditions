@@ -35,6 +35,7 @@ export namespace WhatsappNotificationService {
                         public_url: bulletin.public_url,
                         valid_from: bulletin.valid_from,
                         valid_to: bulletin.valid_to,
+                        risk_level: bulletin.risk_level,
                         subscriptions: subscriptionsWithContentTypes,
                     });
                 }
@@ -48,10 +49,11 @@ export namespace WhatsappNotificationService {
         const messages = destinations.flatMap(destination => {
             const bulletin: Bulletin = {
                 massif: destination.massif,
-                filename: destination.filename,
+                filename: destination.filename.replace(/^\/tmp\//, ''),
                 public_url: destination.public_url,
                 valid_from: destination.valid_from,
                 valid_to: destination.valid_to,
+                risk_level: destination.risk_level,
             };
 
             return destination.recipients.map(recipient => {
@@ -70,6 +72,9 @@ export namespace WhatsappNotificationService {
         const failedRecipients: Array<{recipient: string; massif: number; error: any}> = [];
         const recordingFailures: Array<{recipient: string; error: any}> = [];
 
+        // Track which recipients received bulletins successfully (for follow-up messages)
+        const recipientDeliveries = new Map<string, number[]>();
+
         for (let i = 0; i < batches.length; i++) {
             const batch = batches[i];
 
@@ -85,6 +90,12 @@ export namespace WhatsappNotificationService {
 
                 if (result.status === 'fulfilled') {
                     totalSent++;
+
+                    // Track massifs delivered to this recipient
+                    const delivered = recipientDeliveries.get(msg.recipient) || [];
+                    delivered.push(msg.massif);
+                    recipientDeliveries.set(msg.recipient, delivered);
+
                     try {
                         await Deliveries.recordDelivery(msg.recipient, msg.bulletin, 'whatsapp');
                     } catch (error) {
@@ -104,6 +115,32 @@ export namespace WhatsappNotificationService {
 
             if (i < batches.length - 1) {
                 await AsyncUtils.delay(BATCH_DELAY_MS);
+            }
+        }
+
+        // Send one follow-up per recipient
+        for (const [recipient, massifCodes] of recipientDeliveries) {
+            try {
+                if (massifCodes.length === 1) {
+                    const massif = MassifCache.findByCode(massifCodes[0]);
+                    await WhatsAppClient.sendReplyButtons(
+                        recipient,
+                        `Bulletin update for ${massif?.name ?? 'your massif'}.`,
+                        [{id: `unsub:${massifCodes[0]}`, title: 'Unsubscribe'}],
+                    );
+                } else {
+                    const names = massifCodes
+                        .map(code => MassifCache.findByCode(code)?.name)
+                        .filter(Boolean)
+                        .join(', ');
+                    await WhatsAppClient.sendReplyButtons(
+                        recipient,
+                        `Bulletin updates for ${names}.`,
+                        [{id: 'manage:subs', title: 'Manage subscriptions'}],
+                    );
+                }
+            } catch (error) {
+                console.error(`[WhatsApp] Failed to send follow-up to ${recipient}:`, error);
             }
         }
 
@@ -149,15 +186,6 @@ export namespace WhatsappNotificationService {
             message.bulletin,
             massif,
             contentTypes,
-        );
-
-        // Offer unsubscribe option after cron delivery
-        await WhatsAppClient.sendReplyButtons(
-            message.recipient,
-            `Bulletin update for ${massif.name}.`,
-            [
-                {id: `unsub:${message.massif}`, title: 'Unsubscribe'},
-            ],
         );
     }
 }

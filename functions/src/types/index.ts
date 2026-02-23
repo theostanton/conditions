@@ -29,6 +29,7 @@ export type BulletinDestination = {
     public_url: string,
     valid_from: Date,
     valid_to: Date,
+    risk_level?: number,
     subscriptions: Subscription[],
 }
 

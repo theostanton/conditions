@@ -3,7 +3,47 @@ import {ImageService} from "@services/imageService";
 import {WhatsAppClient} from "@whatsapp/client";
 import {Analytics} from "@analytics/Analytics";
 
+export function bulletinCaption(bulletin: Bulletin, massif: Massif): string {
+    const day = bulletin.valid_to.getUTCDate();
+    const suffix = ordinalSuffix(day);
+    const month = bulletin.valid_to.toLocaleString('en-GB', {month: 'short', timeZone: 'UTC'});
+    const date = `${day}${suffix} ${month}`;
+    const risk = bulletin.risk_level ? ` • ${bulletin.risk_level} / 5` : '';
+    return `${massif.name} • ${date}${risk}`;
+}
+
+function ordinalSuffix(n: number): string {
+    if (n >= 11 && n <= 13) return 'th';
+    switch (n % 10) {
+        case 1: return 'st';
+        case 2: return 'nd';
+        case 3: return 'rd';
+        default: return 'th';
+    }
+}
+
 export namespace WhatsAppDelivery {
+
+    // Cache uploaded media IDs to avoid re-uploading the same image buffer
+    // for every recipient during a cron run. Keyed by image filename.
+    const mediaIdCache = new Map<string, Promise<string>>();
+
+    export function clearMediaCache(): void {
+        mediaIdCache.clear();
+    }
+
+    function getOrUploadMedia(image: ImageService.FetchedImage): Promise<string> {
+        const cached = mediaIdCache.get(image.filename);
+        if (cached) return cached;
+
+        const promise = WhatsAppClient.uploadMedia(image.data, 'image/png', image.filename);
+        mediaIdCache.set(image.filename, promise);
+
+        // Remove from cache on failure so retries can re-upload
+        promise.catch(() => mediaIdCache.delete(image.filename));
+
+        return promise;
+    }
 
     export async function sendBulletinWithContent(
         to: string,
@@ -17,7 +57,7 @@ export namespace WhatsAppDelivery {
                 await WhatsAppClient.sendDocument(
                     to,
                     bulletin.public_url,
-                    `Avalanche bulletin for ${massif.name}`,
+                    bulletinCaption(bulletin, massif),
                     bulletin.filename,
                 );
             } catch (error) {
@@ -46,7 +86,7 @@ export namespace WhatsAppDelivery {
         // Send images individually (WhatsApp has no media group concept)
         for (const image of fetchedImages) {
             try {
-                const mediaId = await WhatsAppClient.uploadMedia(image.data, 'image/png', image.filename);
+                const mediaId = await getOrUploadMedia(image);
                 await WhatsAppClient.sendImage(to, {id: mediaId}, image.caption);
             } catch (error) {
                 console.error(`Failed to send image ${image.filename} for ${massif.name}:`, error);

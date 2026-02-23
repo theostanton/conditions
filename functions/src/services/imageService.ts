@@ -12,6 +12,17 @@ export namespace ImageService {
 
     export type ImageType = Exclude<ContentTypeKey, 'bulletin'>;
 
+    // In-memory cache: avoids re-fetching the same image from Météo-France
+    // for every subscriber during a cron run. Keyed by "massifCode:imageType".
+    const imageCache = new Map<string, Promise<FetchedImage>>();
+
+    /**
+     * Clear the image cache. Call at the start of each cron run.
+     */
+    export function clearCache(): void {
+        imageCache.clear();
+    }
+
     /**
      * Format date as "Sat 12th March"
      */
@@ -81,9 +92,24 @@ export namespace ImageService {
     }
 
     /**
-     * Fetch a single image from Météo France API with authentication
+     * Fetch a single image, using the in-memory cache to avoid duplicate
+     * Météo-France API calls within the same cron run.
      */
-    export async function fetchImage(massifCode: number, imageType: ImageType, bulletin: Bulletin): Promise<FetchedImage> {
+    export function fetchImage(massifCode: number, imageType: ImageType, bulletin: Bulletin): Promise<FetchedImage> {
+        const cacheKey = `${massifCode}:${imageType}`;
+        const cached = imageCache.get(cacheKey);
+        if (cached) return cached;
+
+        const promise = fetchImageFromApi(massifCode, imageType, bulletin);
+        imageCache.set(cacheKey, promise);
+
+        // Remove from cache on failure so retries can re-fetch
+        promise.catch(() => imageCache.delete(cacheKey));
+
+        return promise;
+    }
+
+    async function fetchImageFromApi(massifCode: number, imageType: ImageType, bulletin: Bulletin): Promise<FetchedImage> {
         const url = buildImageUrl(massifCode, imageType);
 
         try {

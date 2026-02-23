@@ -28,14 +28,28 @@ export async function geocode(query: string): Promise<GeocodeResult | null> {
             return null;
         }
 
-        const location = response.data.results[0].geometry.location;
+        const result = response.data.results[0];
+        const location = result.geometry.location;
         return {
             lat: location.lat,
             lng: location.lng,
-            formattedAddress: response.data.results[0].formatted_address,
+            formattedAddress: extractPlaceName(result),
         };
     } catch (error) {
         console.error("Geocoding failed:", error);
         return null;
     }
+}
+
+function extractPlaceName(result: any): string {
+    const components = result.address_components as Array<{ long_name: string; types: string[] }> | undefined;
+    if (!components) return result.formatted_address;
+
+    // Prefer locality (city/town), then sublocality, then admin level 2 (department)
+    for (const type of ['locality', 'sublocality', 'administrative_area_level_2']) {
+        const match = components.find(c => c.types.includes(type));
+        if (match) return match.long_name;
+    }
+
+    return result.formatted_address;
 }

@@ -42,11 +42,20 @@ function cleanupStaleStates(): void {
     }
 }
 
+const GREETING_PATTERN = /^(hi|hello|hey|heya|start|help|good\s+morning|good\s+evening|good\s+afternoon|bonjour|salut|coucou|bonsoir|yo|howdy)\b[!.,;:\s]*/i;
+
+function detectPleasantry(text: string): { isGreeting: boolean; remaining: string } {
+    const match = text.trim().match(GREETING_PATTERN);
+    if (!match) return {isGreeting: false, remaining: text.trim()};
+    return {isGreeting: true, remaining: text.trim().substring(match[0].length).trim()};
+}
+
 async function sendWelcome(to: string): Promise<void> {
     Analytics.send(`WA ${to} welcome`).catch(console.error);
-    await WhatsAppClient.sendText(
+    await WhatsAppClient.sendReplyButtons(
         to,
-        "🏔️ Welcome to Conditions!\n\nShare your location with me using the '+' button below, or send me the name of the massif you're interested in, and I'll send you the bulletin.",
+        "🏔️ Welcome to Conditions!\n\nTo search for a bulletin you can either\n* share your current location using the '+' button\n* send the name of a place\n* browse the full list of massifs",
+        [{id: 'menu:browse', title: '🗺️ Browse all massifs'}],
     );
 }
 
@@ -76,7 +85,8 @@ export namespace WhatsAppRouter {
 
                         try {
                             await WhatsAppClient.sendText(message.from, 'Something went wrong. Please try again.');
-                        } catch {}
+                        } catch {
+                        }
                     }
                 }
             }
@@ -87,7 +97,8 @@ export namespace WhatsAppRouter {
         const from = message.from;
 
         // Mark as read — fire and forget
-        WhatsAppClient.markAsRead(message.id).catch(() => {});
+        WhatsAppClient.markAsRead(message.id).catch(() => {
+        });
 
         // Handle location messages
         if (message.type === 'location' && message.location) {
@@ -105,9 +116,10 @@ export namespace WhatsAppRouter {
             return;
         }
 
-        // Handle text messages as massif search
+        // Handle text messages — check for greeting first, then massif search
         if (message.type === 'text' && message.text?.body) {
             clearState(from);
+            if (await handleGreeting(from, message.text.body, message.id)) return;
             await handleTextSearch(from, message.text.body, message.id);
             return;
         }
@@ -117,14 +129,87 @@ export namespace WhatsAppRouter {
         await sendWelcome(from);
     }
 
+    async function handleGreeting(from: string, text: string, messageId: string): Promise<boolean> {
+        const {isGreeting, remaining} = detectPleasantry(text);
+        if (!isGreeting) return false;
+
+        // Pure pleasantry — send welcome
+        if (!remaining) {
+            Analytics.send(`WA ${from} greeting: "${text}"`).catch(console.error);
+            await sendWelcome(from);
+            return true;
+        }
+
+        // Greeting + extra text — try to resolve it
+        const matches = MassifCache.searchByName(remaining);
+
+        if (matches.length === 1) {
+            Analytics.send(`WA ${from} greeting+search: "${text}" → ${matches[0].name}`).catch(console.error);
+            await BulletinFlow.deliverAndPromptSubscribe(from, matches[0].code, {messageId});
+            return true;
+        }
+
+        if (matches.length > 1) {
+            // Multiple matches — let the user pick (same as handleTextSearch)
+            Analytics.send(`WA ${from} greeting+search: "${text}" → ${matches.length} matches`).catch(console.error);
+            if (matches.length <= 3) {
+                await WhatsAppClient.sendReplyButtons(
+                    from,
+                    `I found ${matches.length} massifs matching "${remaining}". Which one?`,
+                    matches.map(m => ({id: `br:mas:${m.code}`, title: m.name.substring(0, 20)})),
+                );
+            } else {
+                const rows = matches.slice(0, 10).map(m => ({
+                    id: `br:mas:${m.code}`,
+                    title: m.name.substring(0, 24),
+                }));
+                await WhatsAppClient.sendListMessage(
+                    from,
+                    `I found ${matches.length} massifs matching "${remaining}". Which one?`,
+                    'Select massif',
+                    [{title: 'Results', rows}],
+                );
+            }
+            return true;
+        }
+
+        // No massif match — try geocode
+        const cached = await GeocodeCache.lookup(remaining);
+        if (cached) {
+            const massif = MassifCache.findByCode(cached.massifCode);
+            if (massif) {
+                Analytics.send(`WA ${from} greeting+geocode: "${text}" → ${massif.name} (cached)`).catch(console.error);
+                await BulletinFlow.deliverAndPromptSubscribe(from, massif.code, {messageId});
+                return true;
+            }
+        }
+
+        const location = await geocode(remaining);
+        if (location) {
+            const massif = MassifCache.findByLocation(location.lat, location.lng);
+            if (massif) {
+                GeocodeCache.store(remaining, massif.code, location.lat, location.lng, location.formattedAddress).catch(console.error);
+                Analytics.send(`WA ${from} greeting+geocode: "${text}" → ${massif.name}`).catch(console.error);
+                await BulletinFlow.deliverAndPromptSubscribe(from, massif.code, {messageId});
+                return true;
+            }
+        }
+
+        // Couldn't resolve — send welcome
+        Analytics.send(`WA ${from} greeting (unresolved): "${text}"`).catch(console.error);
+        await sendWelcome(from);
+        return true;
+    }
+
     async function handleTextSearch(from: string, query: string, messageId: string): Promise<void> {
         // React immediately so the user knows we're working on it
-        WhatsAppClient.react(from, messageId, '🔍').catch(() => {});
+        WhatsAppClient.react(from, messageId, '🔍').catch(() => {
+        });
 
         const matches = MassifCache.searchByName(query);
 
         if (matches.length === 0) {
-            const body = `You can either\n* share your current location with me using the '+' button\n* send me the name of a place\n* browse the full list of massifs`;
+            const body = `To search for a bulletin you can either\n* share your current location using the '+' button\n* send the name of a place\n* browse the full list of massifs`;
 
             // No massif name match — check geocode cache, then fall back to API
             const reactTo = {messageId};
@@ -132,7 +217,16 @@ export namespace WhatsAppRouter {
             if (cached) {
                 const massif = MassifCache.findByCode(cached.massifCode);
                 Analytics.send(`WA ${from} search: "${query}" → ${massif?.name ?? cached.massifCode} (cached geocode)`).catch(console.error);
-                await BulletinFlow.deliverAndPromptSubscribe(from, cached.massifCode, query, reactTo);
+                WhatsAppClient.react(from, messageId, '').catch(() => {
+                });
+                await WhatsAppClient.sendReplyButtons(
+                    from,
+                    `It looks like ${cached.formattedAddress} is in the ${massif?.name} massif.\nIs that correct?`,
+                    [
+                        {id: `geo:yes:${cached.massifCode}`, title: 'Yes'},
+                        {id: 'geo:no', title: 'No'},
+                    ],
+                );
                 return;
             }
 
@@ -141,12 +235,22 @@ export namespace WhatsAppRouter {
                 const massif = MassifCache.findByLocation(location.lat, location.lng);
                 if (massif) {
                     // Cache for future lookups
-                    GeocodeCache.store(query, massif.code, location.lat, location.lng).catch(console.error);
+                    GeocodeCache.store(query, massif.code, location.lat, location.lng, location.formattedAddress).catch(console.error);
                     Analytics.send(`WA ${from} search: "${query}" → ${massif.name} (geocoded)`).catch(console.error);
-                    await BulletinFlow.deliverAndPromptSubscribe(from, massif.code, query, reactTo);
-                } else{
+                    WhatsAppClient.react(from, messageId, '').catch(() => {
+                    });
+                    await WhatsAppClient.sendReplyButtons(
+                        from,
+                        `It looks like ${location.formattedAddress} is in the ${massif.name} massif.\nIs that correct?`,
+                        [
+                            {id: `geo:yes:${massif.code}`, title: 'Yes'},
+                            {id: 'geo:no', title: 'No'},
+                        ],
+                    );
+                } else {
                     Analytics.send(`WA ${from} search: "${query}" → no massif (geocoded but outside coverage)`).catch(console.error);
-                    WhatsAppClient.react(from, messageId, '').catch(() => {});
+                    WhatsAppClient.react(from, messageId, '').catch(() => {
+                    });
                     await WhatsAppClient.sendReplyButtons(
                         from,
                         `${query} doesn't appear to be in a massif.\n${body}`,
@@ -155,9 +259,10 @@ export namespace WhatsAppRouter {
                         ],
                     );
                 }
-            } else{
+            } else {
                 Analytics.send(`WA ${from} search: "${query}" → no result`).catch(console.error);
-                WhatsAppClient.react(from, messageId, '').catch(() => {});
+                WhatsAppClient.react(from, messageId, '').catch(() => {
+                });
                 await WhatsAppClient.sendReplyButtons(
                     from,
                     `I couldn't find a match for "${query}".\n${body}`,
@@ -171,7 +276,7 @@ export namespace WhatsAppRouter {
 
         if (matches.length === 1) {
             Analytics.send(`WA ${from} search: "${query}" → ${matches[0].name} (massif name)`).catch(console.error);
-            await BulletinFlow.deliverAndPromptSubscribe(from, matches[0].code, undefined, {messageId});
+            await BulletinFlow.deliverAndPromptSubscribe(from, matches[0].code, {messageId});
             return;
         }
 
@@ -197,7 +302,8 @@ export namespace WhatsAppRouter {
         }
 
         // Clear search reaction for non-delivery paths (delivery clears its own)
-        WhatsAppClient.react(from, messageId, '').catch(() => {});
+        WhatsAppClient.react(from, messageId, '').catch(() => {
+        });
     }
 
     async function handleLocation(from: string, lat: number, lng: number): Promise<void> {
@@ -226,18 +332,29 @@ export namespace WhatsAppRouter {
             return;
         }
 
-        // Subscribe after bulletin delivery
-        if (callbackId.startsWith('sub:')) {
-            const value = callbackId.substring('sub:'.length);
-            const massifCode = parseInt(value, 10);
+        // Geocode confirmation
+        if (callbackId.startsWith('geo:yes:')) {
+            const massifCode = parseInt(callbackId.substring('geo:yes:'.length), 10);
             if (!isNaN(massifCode)) {
-                await BulletinFlow.subscribe(from, massifCode);
+                await BulletinFlow.deliverAndPromptSubscribe(from, massifCode);
             }
             clearState(from);
             return;
         }
+        if (callbackId === 'geo:no') {
+            const newState = await BulletinFlow.showMountains(from);
+            setState(from, newState);
+            return;
+        }
 
-        // Unsubscribe (from cron delivery)
+        // Manage subscriptions
+        if (callbackId === 'manage:subs') {
+            await BulletinFlow.manageSubscriptions(from);
+            clearState(from);
+            return;
+        }
+
+        // Unsubscribe
         if (callbackId.startsWith('unsub:')) {
             const massifCode = parseInt(callbackId.substring('unsub:'.length), 10);
             if (!isNaN(massifCode)) {

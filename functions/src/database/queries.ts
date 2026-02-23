@@ -8,13 +8,17 @@ type SubscriptionRow = {
 }
 
 export namespace Database {
-    export async function getMassifsWithSubscribers(platform: Platform = 'telegram'): Promise<number[]> {
+    export async function getMassifsWithSubscribers(platform?: Platform): Promise<number[]> {
         try {
             const client = await getClient();
-            const result = await client.query<Pick<BulletinInfos, "massif">>(
-                "select concat(massif) as massif from bra_subscriptions where platform = $1 group by massif",
-                [platform]
-            );
+            const result = platform
+                ? await client.query<Pick<BulletinInfos, "massif">>(
+                    "select concat(massif) as massif from bra_subscriptions where platform = $1 group by massif",
+                    [platform]
+                )
+                : await client.query<Pick<BulletinInfos, "massif">>(
+                    "select concat(massif) as massif from bra_subscriptions group by massif"
+                );
             return [...result].map(s => s.massif);
         } catch (error) {
             console.error('Database error in getMassifsWithSubscribers:', error);
@@ -187,11 +191,12 @@ export namespace Database {
         public_url: string;
         valid_from: Date;
         valid_to: Date;
+        risk_level?: number;
     }>> {
         try {
             const client = await getClient();
             const result = await client.query(
-                `SELECT DISTINCT ON (massif) massif, filename, public_url, valid_from, valid_to
+                `SELECT DISTINCT ON (massif) massif, filename, public_url, valid_from, valid_to, risk_level
                  FROM bras
                  WHERE valid_to > NOW()
                  ORDER BY massif, valid_to DESC, valid_from DESC`
@@ -202,6 +207,7 @@ export namespace Database {
                 public_url: row.get('public_url') as string,
                 valid_from: row.get('valid_from') as Date,
                 valid_to: row.get('valid_to') as Date,
+                risk_level: row.get('risk_level') as number | undefined,
             }));
         } catch (error) {
             console.error('Database error in getValidBulletins:', error);

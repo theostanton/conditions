@@ -64,8 +64,7 @@ export namespace BulletinService {
         }
     }
 
-    export async function checkForNewBulletins(): Promise<NewBulletinsResult> {
-        const massifsWithSubscribers = await Database.getMassifsWithSubscribers();
+    export async function checkForNewBulletins(massifsWithSubscribers: number[]): Promise<NewBulletinsResult> {
         console.log(`massifsWithSubscribers=${JSON.stringify(massifsWithSubscribers)}`);
 
         const latestStoredBulletins = await Database.getLatestStoredBulletins();

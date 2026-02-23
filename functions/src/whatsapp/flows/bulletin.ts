@@ -4,6 +4,7 @@ import {Deliveries} from "@database/models/Deliveries";
 import {Subscriptions} from "@database/models/Subscriptions";
 import {BulletinService} from "@services/bulletinService";
 import {WhatsAppClient} from "@whatsapp/client";
+import {bulletinCaption} from "@whatsapp/flows/delivery";
 import {Analytics} from "@analytics/Analytics";
 import type {ConversationState} from "@whatsapp/router";
 import type {ListRow, ListSection} from "@whatsapp/types";
@@ -64,7 +65,7 @@ export namespace BulletinFlow {
         return {step: 'select_massif', mountain};
     }
 
-    export async function deliverAndPromptSubscribe(to: string, massifCode: number, placeName?: string, reactTo?: {
+    export async function deliverAndPromptSubscribe(to: string, massifCode: number, reactTo?: {
         messageId: string
     }): Promise<void> {
         const massif = MassifCache.findByCode(massifCode);
@@ -98,11 +99,6 @@ export namespace BulletinFlow {
         }
 
 
-        // Send place context if geocoded
-        if (placeName) {
-            await WhatsAppClient.sendText(to, `Looks like ${placeName} is in the ${massif.name} massif.\nSending you the current bulletin for ${massif.name}.`);
-        }
-
         // Update reaction to show we're sending
         if (reactTo) WhatsAppClient.react(to, reactTo.messageId, '📩').catch(() => {
         });
@@ -111,7 +107,7 @@ export namespace BulletinFlow {
         await WhatsAppClient.sendDocument(
             to,
             bulletin.public_url,
-            undefined,
+            bulletinCaption(bulletin, massif),
             bulletin.filename.replace(/^\/tmp\//, ''),
         );
 
@@ -126,34 +122,50 @@ export namespace BulletinFlow {
             console.error(`Failed to record delivery for ${to}:`, error);
         }
 
-        // Subscribe prompt or confirmation after the PDF
+        // Auto-subscribe and confirm with unsubscribe option
         const isSubscribed = await Subscriptions.isSubscribed(to, massifCode, 'whatsapp');
-        if (isSubscribed) {
-            await WhatsAppClient.sendText(to, `You're already subscribed to ${massif.name} bulletins.`);
-        } else {
-            await WhatsAppClient.sendReplyButtons(
-                to,
-                `Subscribe to ${massif.name} bulletins?`,
-                [{id: `sub:${massifCode}`, title: 'Subscribe'}],
-            );
+        if (!isSubscribed) {
+            await Subscriptions.subscribe(to, massif, undefined, 'whatsapp');
+            Analytics.send(`WhatsApp ${to} auto-subscribed to ${massif.name}`).catch(console.error);
         }
+        await WhatsAppClient.sendReplyButtons(
+            to,
+            `You'll now receive daily ${massif.name} bulletins.`,
+            [{id: `unsub:${massifCode}`, title: 'Unsubscribe'}],
+        );
     }
 
-    export async function subscribe(to: string, massifCode: number): Promise<void> {
-        const massif = MassifCache.findByCode(massifCode);
-        if (!massif) {
-            await WhatsAppClient.sendText(to, 'Massif not found.');
+    export async function manageSubscriptions(to: string): Promise<void> {
+        const subs = await Subscriptions.getAllForUser(to, 'whatsapp');
+
+        if (subs.length === 0) {
+            await WhatsAppClient.sendText(to, "You don't have any active subscriptions.\n\nSend a location or massif name to get started.");
             return;
         }
 
-        await Subscriptions.subscribe(to, massif, undefined, 'whatsapp');
+        if (subs.length === 1) {
+            const massif = MassifCache.findByCode(subs[0].massif);
+            await WhatsAppClient.sendReplyButtons(
+                to,
+                `You're subscribed to ${massif?.name ?? 'a massif'}.`,
+                [{id: `unsub:${subs[0].massif}`, title: 'Unsubscribe'}],
+            );
+            return;
+        }
 
-        await WhatsAppClient.sendText(
+        const rows: ListRow[] = subs
+            .map(s => {
+                const massif = MassifCache.findByCode(s.massif);
+                return massif ? {id: `unsub:${s.massif}`, title: massif.name.substring(0, 24)} : null;
+            })
+            .filter((r): r is ListRow => r !== null);
+
+        await WhatsAppClient.sendListMessage(
             to,
-            `Subscribed to ${massif.name}! You'll receive bulletin updates automatically.\n\nSend any message to start over.`,
+            `You're subscribed to ${rows.length} massifs. Select one to unsubscribe.`,
+            'Select massif',
+            [{title: 'Your subscriptions', rows}],
         );
-
-        Analytics.send(`WhatsApp ${to} subscribed to ${massif.name}`).catch(console.error);
     }
 
     export async function unsubscribe(to: string, massifCode: number): Promise<void> {

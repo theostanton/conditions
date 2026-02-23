@@ -18,8 +18,25 @@ resource "google_storage_bucket_object" "landing_page" {
   source       = "${path.module}/../landing/index.html"
   content_type = "text/html"
 
+  # Detect content changes
+  detect_md5hash = filemd5("${path.module}/../landing/index.html")
+
   # Enable caching
   cache_control = "public, max-age=3600"
+}
+
+# Purge Cloudflare cache when landing page changes
+resource "terraform_data" "purge_landing_cache" {
+  triggers_replace = google_storage_bucket_object.landing_page.md5hash
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${data.cloudflare_zone.main.id}/purge_cache" \
+        -H "Authorization: Bearer ${var.cloudflare_api_token}" \
+        -H "Content-Type: application/json" \
+        --data '{"purge_everything":true}'
+    EOT
+  }
 }
 
 # Make landing page publicly readable

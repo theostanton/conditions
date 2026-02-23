@@ -3,6 +3,15 @@ import {getClient} from "@config/database";
 
 export namespace Subscriptions {
 
+    export async function isKnownUser(recipientId: string, platform: Platform = 'telegram'): Promise<boolean> {
+        const client = await getClient();
+        const result = await client.query(
+            "SELECT 1 FROM recipients WHERE number = $1 AND platform = $2 LIMIT 1",
+            [recipientId, platform],
+        );
+        return result.rows.length > 0;
+    }
+
     export async function isSubscribed(recipientId: string, massifCode: number, platform: Platform = 'telegram'):Promise<boolean>{
         const client = await getClient();
         const result = await client.query(
@@ -57,6 +66,15 @@ export namespace Subscriptions {
             rose_pentes: row.get('rose_pentes') as boolean,
             montagne_risques: row.get('montagne_risques') as boolean,
         };
+    }
+
+    export async function getAllForUser(recipientId: string, platform: Platform = 'telegram'): Promise<Array<{ massif: number }>> {
+        const client = await getClient();
+        const result = await client.query(
+            "SELECT massif FROM bra_subscriptions WHERE recipient = $1 AND platform = $2",
+            [recipientId, platform],
+        );
+        return result.rows.map(row => ({massif: row.get('massif') as number}));
     }
 
     export async function subscribe(userId: string, massif: Massif, contentTypes?: Partial<ContentTypes>, platform: Platform = 'telegram'): Promise<void> {

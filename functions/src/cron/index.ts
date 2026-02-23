@@ -1,6 +1,8 @@
 import {BulletinService} from "@services/bulletinService";
+import {ImageService} from "@services/imageService";
 import {NotificationService} from "./services/notificationService";
 import {WhatsappNotificationService} from "@whatsapp/services/notificationService";
+import {WhatsAppDelivery} from "@whatsapp/flows/delivery";
 import {setupDatabase, closeConnection} from "@config/database";
 import {Database} from "@database/queries";
 import {CronExecutions, type CronExecution} from "@database/models/CronExecutions";
@@ -21,7 +23,11 @@ export default async function () {
         stage = 'initializeMassifCache'
         await MassifCache.initialize();
 
-        // Massifs with subscribers - fetch both in parallel
+        // Clear caches from any previous run (function instance may be reused)
+        ImageService.clearCache();
+        WhatsAppDelivery.clearMediaCache();
+
+        // Massifs with subscribers across all platforms (bulletins are platform-agnostic)
         stage = 'getSubscriberStats'
         const [totalSubscribers, massifsWithSubscribers] = await Promise.all([
             Database.getTotalSubscribers(),
@@ -30,9 +36,9 @@ export default async function () {
         execution.subscriber_count = totalSubscribers;
         execution.massifs_with_subscribers_count = massifsWithSubscribers.length;
 
-        // Check Bulletin difference
+        // Check Bulletin difference — pass massifs to avoid duplicate query
         stage = 'checkForNewBulletins'
-        const newBulletinsResult = await BulletinService.checkForNewBulletins();
+        const newBulletinsResult = await BulletinService.checkForNewBulletins(massifsWithSubscribers);
         const newBulletinsToFetch = newBulletinsResult.bulletinInfosToUpdate
         execution.updated_bulletins_count = newBulletinsToFetch.length;
         if (newBulletinsResult.failedMassifs.length > 0) {

@@ -37,6 +37,7 @@ export namespace NotificationService {
                         public_url: bulletin.public_url,
                         valid_from: bulletin.valid_from,
                         valid_to: bulletin.valid_to,
+                        risk_level: bulletin.risk_level,
                         subscriptions: subscriptionsWithContentTypes
                     });
                 }

@@ -1,6 +1,7 @@
 import {MassifCache} from "@cache/MassifCache";
 import {WhatsAppClient} from "@whatsapp/client";
 import {BulletinFlow} from "@whatsapp/flows/bulletin";
+import {Messages} from "@whatsapp/messages";
 import type {WAWebhookPayload, WAMessage} from "@whatsapp/types";
 import {Analytics} from "@analytics/Analytics";
 import {geocode} from "@utils/geocode";
@@ -54,7 +55,7 @@ async function sendWelcome(to: string): Promise<void> {
     Analytics.send(`WA ${to} welcome`).catch(console.error);
     await WhatsAppClient.sendReplyButtons(
         to,
-        "🏔️ Welcome to Conditions!\n\nTo search for a bulletin you can either\n* share your current location using the '+' button\n* send the name of a place\n* browse the full list of massifs",
+        Messages.welcome,
         [{id: 'menu:browse', title: '🗺️ Browse all massifs'}],
     );
 }
@@ -84,7 +85,7 @@ export namespace WhatsAppRouter {
                         ).catch(err => console.error('Failed to send error analytics:', err));
 
                         try {
-                            await WhatsAppClient.sendText(message.from, 'Something went wrong. Please try again.');
+                            await WhatsAppClient.sendText(message.from, Messages.error);
                         } catch {
                         }
                     }
@@ -152,10 +153,11 @@ export namespace WhatsAppRouter {
         if (matches.length > 1) {
             // Multiple matches — let the user pick (same as handleTextSearch)
             Analytics.send(`WA ${from} greeting+search: "${text}" → ${matches.length} matches`).catch(console.error);
+            const msg = Messages.multipleMatches(matches.length, remaining);
             if (matches.length <= 3) {
                 await WhatsAppClient.sendReplyButtons(
                     from,
-                    `I found ${matches.length} massifs matching "${remaining}". Which one?`,
+                    msg,
                     matches.map(m => ({id: `br:mas:${m.code}`, title: m.name.substring(0, 20)})),
                 );
             } else {
@@ -165,7 +167,7 @@ export namespace WhatsAppRouter {
                 }));
                 await WhatsAppClient.sendListMessage(
                     from,
-                    `I found ${matches.length} massifs matching "${remaining}". Which one?`,
+                    msg,
                     'Select massif',
                     [{title: 'Results', rows}],
                 );
@@ -209,10 +211,7 @@ export namespace WhatsAppRouter {
         const matches = MassifCache.searchByName(query);
 
         if (matches.length === 0) {
-            const body = `To search for a bulletin you can either\n* share your current location using the '+' button\n* send the name of a place\n* browse the full list of massifs`;
-
             // No massif name match — check geocode cache, then fall back to API
-            const reactTo = {messageId};
             const cached = await GeocodeCache.lookup(query);
             if (cached) {
                 const massif = MassifCache.findByCode(cached.massifCode);
@@ -221,7 +220,7 @@ export namespace WhatsAppRouter {
                 });
                 await WhatsAppClient.sendReplyButtons(
                     from,
-                    `It looks like ${cached.formattedAddress} is in the ${massif?.name} massif.\nIs that correct?`,
+                    Messages.geocodeConfirm(cached.formattedAddress, massif?.name ?? 'unknown'),
                     [
                         {id: `geo:yes:${cached.massifCode}`, title: 'Yes'},
                         {id: 'geo:no', title: 'No'},
@@ -241,7 +240,7 @@ export namespace WhatsAppRouter {
                     });
                     await WhatsAppClient.sendReplyButtons(
                         from,
-                        `It looks like ${location.formattedAddress} is in the ${massif.name} massif.\nIs that correct?`,
+                        Messages.geocodeConfirm(location.formattedAddress, massif.name),
                         [
                             {id: `geo:yes:${massif.code}`, title: 'Yes'},
                             {id: 'geo:no', title: 'No'},
@@ -253,10 +252,8 @@ export namespace WhatsAppRouter {
                     });
                     await WhatsAppClient.sendReplyButtons(
                         from,
-                        `${query} doesn't appear to be in a massif.\n${body}`,
-                        [
-                            {id: 'menu:browse', title: '🗺️ Browse all massifs'},
-                        ],
+                        Messages.outsideCoverage(query),
+                        [{id: 'menu:browse', title: '🗺️ Browse all massifs'}],
                     );
                 }
             } else {
@@ -265,10 +262,8 @@ export namespace WhatsAppRouter {
                 });
                 await WhatsAppClient.sendReplyButtons(
                     from,
-                    `I couldn't find a match for "${query}".\n${body}`,
-                    [
-                        {id: 'menu:browse', title: '🗺️ Browse all massifs'},
-                    ],
+                    Messages.noResultsFor(query),
+                    [{id: 'menu:browse', title: '🗺️ Browse all massifs'}],
                 );
             }
             return;
@@ -282,10 +277,11 @@ export namespace WhatsAppRouter {
 
         Analytics.send(`WA ${from} search: "${query}" → ${matches.length} matches`).catch(console.error);
         // Multiple matches — let the user pick
+        const msg = Messages.multipleMatches(matches.length, query);
         if (matches.length <= 3) {
             await WhatsAppClient.sendReplyButtons(
                 from,
-                `I found ${matches.length} massifs matching "${query}". Which one?`,
+                msg,
                 matches.map(m => ({id: `br:mas:${m.code}`, title: m.name.substring(0, 20)})),
             );
         } else {
@@ -295,7 +291,7 @@ export namespace WhatsAppRouter {
             }));
             await WhatsAppClient.sendListMessage(
                 from,
-                `I found ${matches.length} massifs matching "${query}". Which one?`,
+                msg,
                 'Select massif',
                 [{title: 'Results', rows}],
             );
@@ -312,10 +308,8 @@ export namespace WhatsAppRouter {
         if (!massif) {
             await WhatsAppClient.sendReplyButtons(
                 from,
-                "I couldn't find a massif at your location. You might be outside the covered areas.\n\nTry sending a massif name or browse the list.",
-                [
-                    {id: 'menu:browse', title: '🗺️ Browse massifs'},
-                ],
+                Messages.locationNotFound,
+                [{id: 'menu:browse', title: '🗺️ Browse massifs'}],
             );
             return;
         }

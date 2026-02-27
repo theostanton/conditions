@@ -5,6 +5,7 @@ import {ArrayUtils} from "@utils/array";
 import {AsyncUtils} from "@utils/async";
 import {WhatsAppDelivery} from "@whatsapp/flows/delivery";
 import {WhatsAppClient} from "@whatsapp/client";
+import {Messages} from "@whatsapp/messages";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
 
@@ -125,17 +126,16 @@ export namespace WhatsappNotificationService {
                     const massif = MassifCache.findByCode(massifCodes[0]);
                     await WhatsAppClient.sendReplyButtons(
                         recipient,
-                        `Bulletin update for ${massif?.name ?? 'your massif'}.`,
+                        Messages.bulletinUpdate(massif?.name ?? 'your massif'),
                         [{id: `unsub:${massifCodes[0]}`, title: 'Unsubscribe'}],
                     );
                 } else {
                     const names = massifCodes
                         .map(code => MassifCache.findByCode(code)?.name)
-                        .filter(Boolean)
-                        .join(', ');
+                        .filter(Boolean) as string[];
                     await WhatsAppClient.sendReplyButtons(
                         recipient,
-                        `Bulletin updates for ${names}.`,
+                        Messages.bulletinUpdates(names),
                         [{id: 'manage:subs', title: 'Manage subscriptions'}],
                     );
                 }

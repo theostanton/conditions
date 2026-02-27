@@ -5,6 +5,7 @@ import {Subscriptions} from "@database/models/Subscriptions";
 import {BulletinService} from "@services/bulletinService";
 import {WhatsAppClient} from "@whatsapp/client";
 import {bulletinCaption} from "@whatsapp/flows/delivery";
+import {Messages} from "@whatsapp/messages";
 import {Analytics} from "@analytics/Analytics";
 import type {ConversationState} from "@whatsapp/router";
 import type {ListRow, ListSection} from "@whatsapp/types";
@@ -25,9 +26,7 @@ export namespace BulletinFlow {
 
         await WhatsAppClient.sendListMessage(
             to,
-            page > 0
-                ? `Mountain ranges (page ${page + 1}):`
-                : 'Choose a mountain range.',
+            Messages.chooseMountain(page),
             'Select range',
             sections,
             'Mountain Ranges',
@@ -40,7 +39,7 @@ export namespace BulletinFlow {
         const massifs = MassifCache.getByMountain(mountain);
 
         if (massifs.length === 0) {
-            await WhatsAppClient.sendText(to, `No massifs found for ${mountain}.`);
+            await WhatsAppClient.sendText(to, Messages.noMassifsInMountain(mountain));
             return {step: 'idle'};
         }
 
@@ -54,9 +53,7 @@ export namespace BulletinFlow {
 
         await WhatsAppClient.sendListMessage(
             to,
-            page > 0
-                ? `Massifs in ${mountain} (page ${page + 1}):`
-                : `Choose a massif in ${mountain}.`,
+            Messages.chooseMassif(mountain, page),
             'Select massif',
             sections,
             mountain.substring(0, 60),
@@ -70,7 +67,7 @@ export namespace BulletinFlow {
     }): Promise<void> {
         const massif = MassifCache.findByCode(massifCode);
         if (!massif) {
-            await WhatsAppClient.sendText(to, 'Massif not found.');
+            await WhatsAppClient.sendText(to, Messages.massifNotFound);
             return;
         }
 
@@ -94,7 +91,7 @@ export namespace BulletinFlow {
         }
 
         if (!bulletin) {
-            await WhatsAppClient.sendText(to, `No bulletin available for ${massif.name} at this time.`);
+            await WhatsAppClient.sendText(to, Messages.noBulletin(massif.name));
             return;
         }
 
@@ -130,7 +127,7 @@ export namespace BulletinFlow {
         }
         await WhatsAppClient.sendReplyButtons(
             to,
-            `You'll now receive daily ${massif.name} bulletins.`,
+            Messages.subscribed(massif.name),
             [{id: `unsub:${massifCode}`, title: 'Unsubscribe'}],
         );
     }
@@ -139,7 +136,7 @@ export namespace BulletinFlow {
         const subs = await Subscriptions.getAllForUser(to, 'whatsapp');
 
         if (subs.length === 0) {
-            await WhatsAppClient.sendText(to, "You don't have any active subscriptions.\n\nSend a location or massif name to get started.");
+            await WhatsAppClient.sendText(to, Messages.noSubscriptions);
             return;
         }
 
@@ -147,7 +144,7 @@ export namespace BulletinFlow {
             const massif = MassifCache.findByCode(subs[0].massif);
             await WhatsAppClient.sendReplyButtons(
                 to,
-                `You're subscribed to ${massif?.name ?? 'a massif'}.`,
+                Messages.subscribedTo(massif?.name ?? 'a massif'),
                 [{id: `unsub:${subs[0].massif}`, title: 'Unsubscribe'}],
             );
             return;
@@ -162,7 +159,7 @@ export namespace BulletinFlow {
 
         await WhatsAppClient.sendListMessage(
             to,
-            `You're subscribed to ${rows.length} massifs. Select one to unsubscribe.`,
+            Messages.subscribedToCount(rows.length),
             'Select massif',
             [{title: 'Your subscriptions', rows}],
         );
@@ -171,7 +168,7 @@ export namespace BulletinFlow {
     export async function unsubscribe(to: string, massifCode: number): Promise<void> {
         const massif = MassifCache.findByCode(massifCode);
         if (!massif) {
-            await WhatsAppClient.sendText(to, 'Massif not found.');
+            await WhatsAppClient.sendText(to, Messages.massifNotFound);
             return;
         }
 
@@ -179,7 +176,7 @@ export namespace BulletinFlow {
 
         await WhatsAppClient.sendText(
             to,
-            `Unsubscribed from ${massif.name}.\n\nSend any message to start over.`,
+            Messages.unsubscribed(massif.name),
         );
 
         Analytics.send(`WhatsApp ${to} unsubscribed from ${massif.name}`).catch(console.error);

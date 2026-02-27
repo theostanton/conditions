@@ -25,9 +25,22 @@ resource "google_storage_bucket_object" "landing_page" {
   cache_control = "public, max-age=3600"
 }
 
-# Purge Cloudflare cache when landing page changes
+resource "google_storage_bucket_object" "landing_avatar" {
+  name         = "landing/avatar.png"
+  bucket       = google_storage_bucket.bras.name
+  source       = "${path.module}/../landing/avatar.png"
+  content_type = "image/png"
+
+  detect_md5hash = filemd5("${path.module}/../landing/avatar.png")
+  cache_control  = "public, max-age=86400"
+}
+
+# Purge Cloudflare cache when any landing asset changes
 resource "terraform_data" "purge_landing_cache" {
-  triggers_replace = google_storage_bucket_object.landing_page.md5hash
+  triggers_replace = join(",", [
+    google_storage_bucket_object.landing_page.md5hash,
+    google_storage_bucket_object.landing_avatar.md5hash,
+  ])
 
   provisioner "local-exec" {
     command = <<-EOT
@@ -39,9 +52,16 @@ resource "terraform_data" "purge_landing_cache" {
   }
 }
 
-# Make landing page publicly readable
+# Make landing assets publicly readable
 resource "google_storage_object_access_control" "landing_page_public" {
   object = google_storage_bucket_object.landing_page.name
+  bucket = google_storage_bucket.bras.name
+  role   = "READER"
+  entity = "allUsers"
+}
+
+resource "google_storage_object_access_control" "landing_avatar_public" {
+  object = google_storage_bucket_object.landing_avatar.name
   bucket = google_storage_bucket.bras.name
   role   = "READER"
   entity = "allUsers"

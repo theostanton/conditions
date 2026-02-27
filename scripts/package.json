@@ -5,6 +5,7 @@
   "types": "../types/types.d.ts",
   "scripts": {
     "update-massifs": "tsx update_massifs.ts",
+    "broadcast-whatsapp-announcement": "tsx  broadcast-whatsapp-announcement.ts",
     "set-bot-commands": "tsx set-bot-commands.ts"
   },
   "dependencies": {

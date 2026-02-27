@@ -1,9 +1,15 @@
 /**
  * Cloudflare Worker to serve landing page from Google Cloud Storage
- * Proxies requests to the GCS bucket and provides edge caching
+ *
+ * Uses the Cache API with a zone-based cache key so that
+ * Cloudflare zone purges (purge_everything) actually invalidate the
+ * cached GCS response. The previous approach used cf.cacheTtl on the
+ * GCS subrequest, which keyed the cache on the GCS URL — outside the
+ * zone, so purges never reached it.
  */
 
-const GCS_BUCKET_URL = 'https://storage.googleapis.com/conditions-450312-bras/landing/index.html';
+const GCS_BASE = 'https://storage.googleapis.com/conditions-450312-bras/landing';
+const CACHE_KEY_BASE = 'https://conditionsreport.com/__landing';
 
 async function handleRequest(request) {
   const url = new URL(request.url);
@@ -18,37 +24,40 @@ async function handleRequest(request) {
     return Response.redirect('https://conditionsreport.com/', 301);
   }
 
-  // Redirect any non-root path to root (e.g., /about → /)
-  if (url.pathname !== '/' && url.pathname !== '') {
-    return Response.redirect('https://conditionsreport.com/', 301);
-  }
+  // Map request path to GCS object
+  const path = url.pathname === '/' || url.pathname === '' ? '/index.html' : url.pathname;
+  const gcsUrl = GCS_BASE + path;
+  const cacheKey = new Request(CACHE_KEY_BASE + path);
 
-  // Handle root path - serve landing page
   try {
-    // Fetch from GCS with caching
-    const response = await fetch(GCS_BUCKET_URL, {
-      cf: {
-        cacheTtl: 3600,        // Cache for 1 hour
-        cacheEverything: true  // Cache HTML content
-      }
-    });
+    const cache = caches.default;
 
-    if (!response.ok) {
+    // Check zone-scoped cache first
+    let cached = await cache.match(cacheKey);
+    if (cached) return cached;
+
+    // Fetch from GCS (no cf caching — we manage the cache ourselves)
+    const origin = await fetch(gcsUrl);
+
+    if (!origin.ok) {
+      // If not the root page, redirect to root instead of showing an error
+      if (path !== '/index.html') {
+        return Response.redirect('https://conditionsreport.com/', 302);
+      }
       return new Response('Error loading page', {
         status: 500,
         headers: { 'Content-Type': 'text/plain' }
       });
     }
 
-    // Clone response to modify headers
-    const newResponse = new Response(response.body, response);
+    const response = new Response(origin.body, origin);
+    response.headers.set('Cache-Control', 'public, max-age=3600');
+    response.headers.set('X-Content-Type-Options', 'nosniff');
 
-    // Set custom headers
-    newResponse.headers.set('Cache-Control', 'public, max-age=3600');
-    newResponse.headers.set('Content-Type', 'text/html; charset=utf-8');
-    newResponse.headers.set('X-Content-Type-Options', 'nosniff');
+    // Store under zone-scoped key so zone purges clear it
+    await cache.put(cacheKey, response.clone());
 
-    return newResponse;
+    return response;
   } catch (error) {
     return new Response('Error loading page: ' + error.message, {
       status: 500,

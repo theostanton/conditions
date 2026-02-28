@@ -4,7 +4,7 @@ import {Deliveries} from "@database/models/Deliveries";
 import {Subscriptions} from "@database/models/Subscriptions";
 import {BulletinService} from "@services/bulletinService";
 import {WhatsAppClient} from "@whatsapp/client";
-import {sendBulletinTemplate} from "@whatsapp/flows/delivery";
+import type {Bulletin, Massif} from "@app-types";
 import {Messages} from "@whatsapp/messages";
 import {Analytics} from "@analytics/Analytics";
 import type {ConversationState} from "@whatsapp/router";
@@ -100,8 +100,8 @@ export namespace BulletinFlow {
         if (reactTo) WhatsAppClient.react(to, reactTo.messageId, '📩').catch(() => {
         });
 
-        // Send the PDF via template for consistency
-        await sendBulletinTemplate(to, bulletin, massif);
+        // Send the PDF directly (user is within the 24h conversation window)
+        await WhatsAppClient.sendDocument(to, bulletin.public_url, bulletinCaption(bulletin, massif), bulletin.filename);
 
         // Remove reaction now that delivery is complete
         if (reactTo) WhatsAppClient.react(to, reactTo.messageId, '').catch(() => {
@@ -176,6 +176,11 @@ export namespace BulletinFlow {
 
         Analytics.send(`WhatsApp ${to} unsubscribed from ${massif.name}`).catch(console.error);
     }
+}
+
+function bulletinCaption(bulletin: Bulletin, massif: Massif): string {
+    const risk = bulletin.risk_level != null ? `${bulletin.risk_level} / 5` : '';
+    return `Avalanche bulletin for ${massif.name}${risk ? ` • ${risk}` : ''}`;
 }
 
 function paginate(allRows: ListRow[], page: number, nextPageId: string): ListRow[] {

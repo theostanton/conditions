@@ -4,7 +4,7 @@ import {Deliveries} from "@database/models/Deliveries";
 import {Subscriptions} from "@database/models/Subscriptions";
 import {BulletinService} from "@services/bulletinService";
 import {WhatsAppClient} from "@whatsapp/client";
-import {bulletinCaption} from "@whatsapp/flows/delivery";
+import {sendBulletinTemplate} from "@whatsapp/flows/delivery";
 import {Messages} from "@whatsapp/messages";
 import {Analytics} from "@analytics/Analytics";
 import type {ConversationState} from "@whatsapp/router";
@@ -100,13 +100,8 @@ export namespace BulletinFlow {
         if (reactTo) WhatsAppClient.react(to, reactTo.messageId, '📩').catch(() => {
         });
 
-        // Send the PDF
-        await WhatsAppClient.sendDocument(
-            to,
-            bulletin.public_url,
-            bulletinCaption(bulletin, massif),
-            bulletin.filename.replace(/^\/tmp\//, ''),
-        );
+        // Send the PDF via template for consistency
+        await sendBulletinTemplate(to, bulletin, massif);
 
         // Remove reaction now that delivery is complete
         if (reactTo) WhatsAppClient.react(to, reactTo.messageId, '').catch(() => {

@@ -1,6 +1,9 @@
 import axios from "axios";
+import {Agent} from "https";
 import {WA_API_BASE, WA_ACCESS_TOKEN} from "@config/whatsapp";
 import type {ListSection, ReplyButton, TemplateComponent} from "@whatsapp/types";
+
+const keepAliveAgent = new Agent({keepAlive: true});
 
 const api = axios.create({
     baseURL: WA_API_BASE,
@@ -8,6 +11,8 @@ const api = axios.create({
         'Authorization': `Bearer ${WA_ACCESS_TOKEN}`,
         'Content-Type': 'application/json',
     },
+    httpsAgent: keepAliveAgent,
+    timeout: 15000,
 });
 
 api.interceptors.response.use(

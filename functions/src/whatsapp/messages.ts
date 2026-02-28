@@ -14,7 +14,7 @@ export namespace Messages {
     // ── Welcome & help ──────────────────────────────────────────────
 
     export const welcome =
-        `🏔️ Welcome to Conditions!\n\nSend a place name, share your location, or browse all massifs to get an avalanche bulletin.`;
+        `🏔️ Welcome to Conditions!\n\nSend a place name, share your location or browse all massifs to get an avalanche bulletin.`;
 
     export const error = 'Something went wrong. Please try again.';
 
@@ -60,6 +60,7 @@ export namespace Messages {
     // ── Bulletin delivery ───────────────────────────────────────────
 
     export const massifNotFound = 'Massif not found. Send a name or browse the list.';
+    const challenges = `\n\n_Bulletin subscriptions are facing some technical challenges that will be resolved soon._`;
 
     export function noBulletin(massifName: string): string {
         return `No bulletin available for *${massifName}* right now.`;
@@ -68,15 +69,15 @@ export namespace Messages {
     // ── Subscriptions ───────────────────────────────────────────────
 
     export function subscribed(massifName: string): string {
-        return `Subscribed to daily *${massifName}* bulletins.`;
+        return `Subscribed to daily *${massifName}* bulletins.${challenges}`;
     }
 
     export function subscribedTo(massifName: string): string {
-        return `Subscribed to *${massifName}*.`;
+        return `Subscribed to *${massifName}*.${challenges}`;
     }
 
     export function subscribedToCount(count: number): string {
-        return `Subscribed to ${count} massifs.`;
+        return `Subscribed to ${count} massifs.${challenges}`;
     }
 
     export function unsubscribed(massifName: string): string {

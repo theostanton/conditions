@@ -6,7 +6,8 @@
   "scripts": {
     "update-massifs": "tsx update_massifs.ts",
     "broadcast-whatsapp-announcement": "tsx  broadcast-whatsapp-announcement.ts",
-    "set-bot-commands": "tsx set-bot-commands.ts"
+    "set-bot-commands": "tsx set-bot-commands.ts",
+    "test-template": "tsx test-template.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.15.1",

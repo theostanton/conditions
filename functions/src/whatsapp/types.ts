@@ -81,6 +81,7 @@ export interface TemplateComponent {
 
 export interface TemplateParameter {
     type: 'text' | 'document' | 'image';
+    parameter_name?: string;
     text?: string;
     document?: { link: string; filename?: string };
     image?: { link: string };

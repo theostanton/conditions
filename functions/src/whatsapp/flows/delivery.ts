@@ -38,6 +38,7 @@ export async function sendBulletinTemplate(to: string, bulletin: Bulletin, massi
             type: 'body',
             parameters: [{
                 type: 'text',
+                parameter_name: 'text',
                 text: templateBodyParam(bulletin, massif),
             }],
         },

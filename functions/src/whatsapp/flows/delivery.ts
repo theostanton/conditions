@@ -21,7 +21,7 @@ function templateBodyParam(bulletin: Bulletin, massif: Massif): string {
     const suffix = ordinalSuffix(day);
     const month = bulletin.valid_to.toLocaleString('en-GB', {month: 'short', timeZone: 'UTC'});
     const risk = bulletin.risk_level != null ? ` • ${bulletin.risk_level} ` : '';
-    return `for ${massif.name} • ${day}${suffix} ${month}${risk}`;
+    return `${massif.name} • ${day}${suffix} ${month}${risk}`;
 }
 
 /** Send a bulletin PDF via the 'bulletin' message template. */
@@ -31,7 +31,7 @@ export async function sendBulletinTemplate(to: string, bulletin: Bulletin, massi
             type: 'header',
             parameters: [{
                 type: 'document',
-                document: {link: bulletin.public_url, filename: bulletin.filename},
+                document: {link: bulletin.public_url, filename: bulletin.filename.replace(/^\/tmp\//, '')},
             }],
         },
         {

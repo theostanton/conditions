@@ -190,7 +190,7 @@ export namespace WhatsAppRouter {
             const massif = MassifCache.findByCode(cached.massifCode);
             if (massif) {
                 Analytics.send(`WA ${from} greeting+geocode: "${text}" → ${massif.name} (cached)`).catch(console.error);
-                await BulletinFlow.deliverAndPromptSubscribe(from, massif.code, {messageId});
+                await BulletinFlow.deliverAndPromptSubscribe(from, massif.code, {messageId}, cached.formattedAddress);
                 return true;
             }
         }
@@ -201,7 +201,7 @@ export namespace WhatsAppRouter {
             if (massif) {
                 GeocodeCache.store(remaining, massif.code, location.lat, location.lng, location.formattedAddress).catch(console.error);
                 Analytics.send(`WA ${from} greeting+geocode: "${text}" → ${massif.name}`).catch(console.error);
-                await BulletinFlow.deliverAndPromptSubscribe(from, massif.code, {messageId});
+                await BulletinFlow.deliverAndPromptSubscribe(from, massif.code, {messageId}, location.formattedAddress);
                 return true;
             }
         }
@@ -224,16 +224,9 @@ export namespace WhatsAppRouter {
             if (cached) {
                 const massif = MassifCache.findByCode(cached.massifCode);
                 Analytics.send(`WA ${from} search: "${query}" → ${massif?.name ?? cached.massifCode} (cached geocode)`).catch(console.error);
-                WhatsAppClient.react(from, messageId, '').catch(() => {
-                });
-                await WhatsAppClient.sendReplyButtons(
-                    from,
-                    Messages.geocodeConfirm(cached.formattedAddress, massif?.name ?? 'unknown'),
-                    [
-                        {id: `geo:yes:${cached.massifCode}`, title: 'Yes'},
-                        {id: 'geo:no', title: 'No'},
-                    ],
-                );
+                if (massif) {
+                    await BulletinFlow.deliverAndPromptSubscribe(from, massif.code, {messageId}, cached.formattedAddress);
+                }
                 return;
             }
 
@@ -244,16 +237,7 @@ export namespace WhatsAppRouter {
                     // Cache for future lookups
                     GeocodeCache.store(query, massif.code, location.lat, location.lng, location.formattedAddress).catch(console.error);
                     Analytics.send(`WA ${from} search: "${query}" → ${massif.name} (geocoded)`).catch(console.error);
-                    WhatsAppClient.react(from, messageId, '').catch(() => {
-                    });
-                    await WhatsAppClient.sendReplyButtons(
-                        from,
-                        Messages.geocodeConfirm(location.formattedAddress, massif.name),
-                        [
-                            {id: `geo:yes:${massif.code}`, title: 'Yes'},
-                            {id: 'geo:no', title: 'No'},
-                        ],
-                    );
+                    await BulletinFlow.deliverAndPromptSubscribe(from, massif.code, {messageId}, location.formattedAddress);
                 } else {
                     Analytics.send(`WA ${from} search: "${query}" → no massif (geocoded but outside coverage)`).catch(console.error);
                     WhatsAppClient.react(from, messageId, '').catch(() => {
@@ -329,21 +313,6 @@ export namespace WhatsAppRouter {
     async function handleCallback(from: string, callbackId: string): Promise<void> {
         // Browse massifs (from "no match" fallback)
         if (callbackId === 'menu:browse') {
-            const newState = await BulletinFlow.showMountains(from);
-            setState(from, newState);
-            return;
-        }
-
-        // Geocode confirmation
-        if (callbackId.startsWith('geo:yes:')) {
-            const massifCode = parseInt(callbackId.substring('geo:yes:'.length), 10);
-            if (!isNaN(massifCode)) {
-                await BulletinFlow.deliverAndPromptSubscribe(from, massifCode);
-            }
-            clearState(from);
-            return;
-        }
-        if (callbackId === 'geo:no') {
             const newState = await BulletinFlow.showMountains(from);
             setState(from, newState);
             return;

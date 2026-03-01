@@ -24,10 +24,6 @@ export namespace Messages {
         return `${count} massifs match "*${query}*". Which one?`;
     }
 
-    export function geocodeConfirm(formattedAddress: string, massifName: string): string {
-        return `*${formattedAddress}* looks like it's in the *${massifName}* massif. Correct?`;
-    }
-
     export function noResultsFor(query: string): string {
         return `No results for "*${query}*".\n\n${HELP_SHORT}`;
     }
@@ -60,7 +56,10 @@ export namespace Messages {
     // ── Bulletin delivery ───────────────────────────────────────────
 
     export const massifNotFound = 'Massif not found. Send a name or browse the list.';
-    const challenges = `\n\n_Bulletin subscriptions are facing some technical challenges that will be resolved soon._`;
+
+    export function geocodeHint(query: string, massifName: string): string {
+        return `Looks like *${query}* is within the *${massifName}* massif.\n\nDouble check that is correct before using this bulletin.`;
+    }
 
     export function noBulletin(massifName: string): string {
         return `No bulletin available for *${massifName}* right now.`;
@@ -69,15 +68,15 @@ export namespace Messages {
     // ── Subscriptions ───────────────────────────────────────────────
 
     export function subscribed(massifName: string): string {
-        return `Subscribed to daily *${massifName}* bulletins.${challenges}`;
+        return `Subscribed to daily *${massifName}* bulletins.`;
     }
 
     export function subscribedTo(massifName: string): string {
-        return `Subscribed to *${massifName}*.${challenges}`;
+        return `Subscribed to *${massifName}*.`;
     }
 
     export function subscribedToCount(count: number): string {
-        return `Subscribed to ${count} massifs.${challenges}`;
+        return `Subscribed to ${count} massifs.`;
     }
 
     export function unsubscribed(massifName: string): string {

@@ -64,7 +64,7 @@ export namespace BulletinFlow {
 
     export async function deliverAndPromptSubscribe(to: string, massifCode: number, reactTo?: {
         messageId: string
-    }): Promise<void> {
+    }, geocodeQuery?: string): Promise<void> {
         const massif = MassifCache.findByCode(massifCode);
         if (!massif) {
             await WhatsAppClient.sendText(to, Messages.massifNotFound);
@@ -101,11 +101,17 @@ export namespace BulletinFlow {
         });
 
         // Send the PDF directly (user is within the 24h conversation window)
-        await WhatsAppClient.sendDocument(to, bulletin.public_url, bulletinCaption(bulletin, massif), bulletin.filename);
+        const displayFilename = bulletin.filename.replace(/^\/tmp\//, '');
+        await WhatsAppClient.sendDocument(to, bulletin.public_url, bulletinCaption(bulletin, massif), displayFilename);
 
         // Remove reaction now that delivery is complete
         if (reactTo) WhatsAppClient.react(to, reactTo.messageId, '').catch(() => {
         });
+
+        // Warn the user to verify the massif when matched via geocoding
+        if (geocodeQuery) {
+            await WhatsAppClient.sendText(to, Messages.geocodeHint(geocodeQuery, massif.name));
+        }
 
         // Record delivery
         try {
@@ -114,17 +120,12 @@ export namespace BulletinFlow {
             console.error(`Failed to record delivery for ${to}:`, error);
         }
 
-        // Auto-subscribe and confirm with unsubscribe option
+        // Auto-subscribe silently (unsubscribe is available via the template button)
         const isSubscribed = await Subscriptions.isSubscribed(to, massifCode, 'whatsapp');
         if (!isSubscribed) {
             await Subscriptions.subscribe(to, massif, undefined, 'whatsapp');
             Analytics.send(`WhatsApp ${to} auto-subscribed to ${massif.name}`).catch(console.error);
         }
-        await WhatsAppClient.sendReplyButtons(
-            to,
-            Messages.subscribed(massif.name),
-            [{id: `unsub:${massifCode}`, title: 'Unsubscribe'}],
-        );
     }
 
     export async function manageSubscriptions(to: string): Promise<void> {
@@ -180,7 +181,7 @@ export namespace BulletinFlow {
 
 function bulletinCaption(bulletin: Bulletin, massif: Massif): string {
     const risk = bulletin.risk_level != null ? `${bulletin.risk_level} / 5` : '';
-    return `Avalanche bulletin for ${massif.name}${risk ? ` • ${risk}` : ''}`;
+    return `Bulletin for ${massif.name}${risk ? ` • ${risk}` : ''}`;
 }
 
 function paginate(allRows: ListRow[], page: number, nextPageId: string): ListRow[] {

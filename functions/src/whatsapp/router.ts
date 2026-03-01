@@ -117,9 +117,16 @@ export namespace WhatsAppRouter {
             return;
         }
 
-        // Handle text messages — check for greeting first, then massif search
+        // Handle template quick-reply button taps
+        if (message.type === 'button' && message.button?.payload) {
+            await handleCallback(from, message.button.payload);
+            return;
+        }
+
+        // Handle text messages — react immediately, then check for greeting / massif search
         if (message.type === 'text' && message.text?.body) {
             clearState(from);
+            WhatsAppClient.react(from, message.id, '🔍').catch(() => {});
             if (await handleGreeting(from, message.text.body, message.id)) return;
             await handleTextSearch(from, message.text.body, message.id);
             return;
@@ -134,8 +141,9 @@ export namespace WhatsAppRouter {
         const {isGreeting, remaining} = detectPleasantry(text);
         if (!isGreeting) return false;
 
-        // Pure pleasantry — send welcome
+        // Pure pleasantry — clear search reaction and send welcome
         if (!remaining) {
+            WhatsAppClient.react(from, messageId, '').catch(() => {});
             Analytics.send(`WA ${from} greeting: "${text}"`).catch(console.error);
             await sendWelcome(from);
             return true;
@@ -151,7 +159,8 @@ export namespace WhatsAppRouter {
         }
 
         if (matches.length > 1) {
-            // Multiple matches — let the user pick (same as handleTextSearch)
+            // Multiple matches — clear search reaction and let the user pick
+            WhatsAppClient.react(from, messageId, '').catch(() => {});
             Analytics.send(`WA ${from} greeting+search: "${text}" → ${matches.length} matches`).catch(console.error);
             const msg = Messages.multipleMatches(matches.length, remaining);
             if (matches.length <= 3) {
@@ -197,16 +206,15 @@ export namespace WhatsAppRouter {
             }
         }
 
-        // Couldn't resolve — send welcome
+        // Couldn't resolve — clear search reaction and send welcome
+        WhatsAppClient.react(from, messageId, '').catch(() => {});
         Analytics.send(`WA ${from} greeting (unresolved): "${text}"`).catch(console.error);
         await sendWelcome(from);
         return true;
     }
 
     async function handleTextSearch(from: string, query: string, messageId: string): Promise<void> {
-        // React immediately so the user knows we're working on it
-        WhatsAppClient.react(from, messageId, '🔍').catch(() => {
-        });
+        // 🔍 reaction already sent by handleMessage
 
         const matches = MassifCache.searchByName(query);
 

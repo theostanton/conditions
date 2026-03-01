@@ -39,6 +39,10 @@ export interface WAMessage {
         list_reply?: { id: string; title: string };
         button_reply?: { id: string; title: string };
     };
+    button?: {
+        text: string;
+        payload: string;
+    };
     location?: {
         latitude: number;
         longitude: number;
@@ -80,8 +84,10 @@ export interface TemplateComponent {
 }
 
 export interface TemplateParameter {
-    type: 'text' | 'document' | 'image';
+    type: 'text' | 'document' | 'image' | 'payload';
+    parameter_name?: string;
     text?: string;
+    payload?: string;
     document?: { link: string; filename?: string };
     image?: { link: string };
 }

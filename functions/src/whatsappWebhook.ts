@@ -1,4 +1,5 @@
 import {Request, Response} from '@google-cloud/functions-framework';
+import {lookup} from "dns/promises";
 import {setupDatabase} from "@config/database";
 import {MassifCache} from "@cache/MassifCache";
 import {WA_VERIFY_TOKEN} from "@config/whatsapp";
@@ -7,10 +8,16 @@ import type {WAWebhookPayload} from "@whatsapp/types";
 
 // Initialize DB + cache eagerly at instance boot (not on first request)
 const ready = (async () => {
-    console.log('Setting up database');
-    await setupDatabase();
-    console.log('Initializing massif cache');
-    await MassifCache.initialize();
+    await Promise.all([
+        (async () => {
+            console.log('Setting up database');
+            await setupDatabase();
+            console.log('Initializing massif cache');
+            await MassifCache.initialize();
+        })(),
+        // Pre-warm DNS for the WhatsApp API so the first outbound call is faster
+        lookup('graph.facebook.com').catch(() => {}),
+    ]);
 })();
 
 export async function whatsappWebhook(req: Request, res: Response) {

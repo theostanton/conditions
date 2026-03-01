@@ -117,6 +117,12 @@ export namespace WhatsAppRouter {
             return;
         }
 
+        // Handle template quick-reply button taps
+        if (message.type === 'button' && message.button?.payload) {
+            await handleCallback(from, message.button.payload);
+            return;
+        }
+
         // Handle text messages — react immediately, then check for greeting / massif search
         if (message.type === 'text' && message.text?.body) {
             clearState(from);

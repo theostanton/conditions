@@ -42,6 +42,15 @@ export async function sendBulletinTemplate(to: string, bulletin: Bulletin, massi
                 text: templateBodyParam(bulletin, massif),
             }],
         },
+        {
+            type: 'button',
+            sub_type: 'quick_reply',
+            index: 0,
+            parameters: [{
+                type: 'payload',
+                payload: `unsub:${massif.code}`,
+            }],
+        },
     ];
     console.log(`[sendBulletinTemplate] payload=${JSON.stringify({to, template: 'bulletin', lang: 'en', components})}`);
     await WhatsAppClient.sendTemplate(to, 'bulletin', 'en', components);

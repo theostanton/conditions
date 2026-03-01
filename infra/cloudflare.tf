@@ -13,6 +13,11 @@ terraform {
       version = "~> 4.0"
     }
   }
+
+  backend "gcs" {
+    bucket = "conditions-450312-tfstate"
+    prefix = "terraform/state"
+  }
 }
 
 provider "cloudflare" {

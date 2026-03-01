@@ -6,20 +6,6 @@
 # Specific resources are defined in their respective files:
 # - landing.tf: Landing page DNS, Worker, and redirects
 
-terraform {
-  required_providers {
-    cloudflare = {
-      source  = "cloudflare/cloudflare"
-      version = "~> 4.0"
-    }
-  }
-
-  backend "gcs" {
-    bucket = "conditions-450312-tfstate"
-    prefix = "terraform/state"
-  }
-}
-
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }

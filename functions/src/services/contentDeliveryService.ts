@@ -8,6 +8,15 @@ export namespace ContentDeliveryService {
 
     export type DeliveryType = 'download' | 'subscription';
 
+    // Cache Telegram file IDs after the first successful upload so subsequent
+    // recipients reuse the permanent file_id instead of re-uploading buffers
+    // (avoids FILE_REFERENCE_0_EXPIRED errors). Keyed by image filename.
+    const telegramFileIdCache = new Map<string, string>();
+
+    export function clearTelegramCache(): void {
+        telegramFileIdCache.clear();
+    }
+
     /**
      * Send bulletin PDF and images based on content types
      * Works with both Context (for bot commands) and Bot API (for cron)
@@ -80,16 +89,33 @@ export namespace ContentDeliveryService {
         // Send images if any were successfully fetched
         if (fetchedImages.length > 0) {
             try {
-                // Create InputFile objects from fetched image buffers with captions
+                // Check if all images have cached Telegram file IDs
+                const allCached = fetchedImages.every(img => telegramFileIdCache.has(img.filename));
+
+                // Use cached file_id strings when available, otherwise upload buffers
                 const mediaGroup = fetchedImages.map(image => {
-                    const inputFile = new InputFile(image.data, image.filename);
-                    return InputMediaBuilder.photo(inputFile, {caption: image.caption});
+                    const cachedFileId = telegramFileIdCache.get(image.filename);
+                    const media = cachedFileId
+                        ? cachedFileId
+                        : new InputFile(image.data, image.filename);
+                    return InputMediaBuilder.photo(media, {caption: image.caption});
                 });
 
                 if (context) {
                     await context.replyWithMediaGroup(mediaGroup);
                 } else if (bot && recipient) {
-                    await bot.api.sendMediaGroup(recipient, mediaGroup);
+                    const sentMessages = await bot.api.sendMediaGroup(recipient, mediaGroup);
+
+                    // Cache file IDs from first successful upload for reuse
+                    if (!allCached) {
+                        for (let i = 0; i < sentMessages.length; i++) {
+                            const msg = sentMessages[i];
+                            if ('photo' in msg && msg.photo.length > 0) {
+                                const fileId = msg.photo[msg.photo.length - 1].file_id;
+                                telegramFileIdCache.set(fetchedImages[i].filename, fileId);
+                            }
+                        }
+                    }
                 }
             } catch (error) {
                 console.error(`Failed to send media group for ${massif.name}:`, error);

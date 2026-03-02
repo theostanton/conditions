@@ -4,8 +4,6 @@ import {Deliveries} from "@database/models/Deliveries";
 import {ArrayUtils} from "@utils/array";
 import {AsyncUtils} from "@utils/async";
 import {WhatsAppDelivery} from "@whatsapp/flows/delivery";
-import {WhatsAppClient} from "@whatsapp/client";
-import {Messages} from "@whatsapp/messages";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
 
@@ -73,9 +71,6 @@ export namespace WhatsappNotificationService {
         const failedRecipients: Array<{recipient: string; massif: number; error: any}> = [];
         const recordingFailures: Array<{recipient: string; error: any}> = [];
 
-        // Track which recipients received bulletins successfully (for follow-up messages)
-        const recipientDeliveries = new Map<string, number[]>();
-
         for (let i = 0; i < batches.length; i++) {
             const batch = batches[i];
 
@@ -91,11 +86,6 @@ export namespace WhatsappNotificationService {
 
                 if (result.status === 'fulfilled') {
                     totalSent++;
-
-                    // Track massifs delivered to this recipient
-                    const delivered = recipientDeliveries.get(msg.recipient) || [];
-                    delivered.push(msg.massif);
-                    recipientDeliveries.set(msg.recipient, delivered);
 
                     try {
                         await Deliveries.recordDelivery(msg.recipient, msg.bulletin, 'whatsapp');
@@ -116,31 +106,6 @@ export namespace WhatsappNotificationService {
 
             if (i < batches.length - 1) {
                 await AsyncUtils.delay(BATCH_DELAY_MS);
-            }
-        }
-
-        // Send one follow-up per recipient
-        for (const [recipient, massifCodes] of recipientDeliveries) {
-            try {
-                if (massifCodes.length === 1) {
-                    const massif = MassifCache.findByCode(massifCodes[0]);
-                    await WhatsAppClient.sendReplyButtons(
-                        recipient,
-                        Messages.bulletinUpdate(massif?.name ?? 'your massif'),
-                        [{id: `unsub:${massifCodes[0]}`, title: 'Unsubscribe'}],
-                    );
-                } else {
-                    const names = massifCodes
-                        .map(code => MassifCache.findByCode(code)?.name)
-                        .filter(Boolean) as string[];
-                    await WhatsAppClient.sendReplyButtons(
-                        recipient,
-                        Messages.bulletinUpdates(names),
-                        [{id: 'manage:subs', title: 'Manage subscriptions'}],
-                    );
-                }
-            } catch (error) {
-                console.error(`[WhatsApp] Failed to send follow-up to ${recipient}:`, error);
             }
         }
 

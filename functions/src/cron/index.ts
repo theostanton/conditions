@@ -3,6 +3,7 @@ import {ImageService} from "@services/imageService";
 import {NotificationService} from "./services/notificationService";
 import {WhatsappNotificationService} from "@whatsapp/services/notificationService";
 import {WhatsAppDelivery} from "@whatsapp/flows/delivery";
+import {ContentDeliveryService} from "@services/contentDeliveryService";
 import {setupDatabase, closeConnection} from "@config/database";
 import {Database} from "@database/queries";
 import {CronExecutions, type CronExecution} from "@database/models/CronExecutions";
@@ -25,6 +26,7 @@ export default async function () {
 
         // Clear caches from any previous run (function instance may be reused)
         ImageService.clearCache();
+        ContentDeliveryService.clearTelegramCache();
         WhatsAppDelivery.clearMediaCache();
 
         // Massifs with subscribers across all platforms (bulletins are platform-agnostic)

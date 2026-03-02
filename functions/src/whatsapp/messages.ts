@@ -85,15 +85,4 @@ export namespace Messages {
 
     export const noSubscriptions =
         'No active subscriptions.\n\nSend a place name or share your location to get started.';
-
-    // ── Notification follow-ups ─────────────────────────────────────
-
-    export function bulletinUpdate(massifName: string): string {
-        return `New *${massifName}* bulletin.`;
-    }
-
-    export function bulletinUpdates(names: string[]): string {
-        const bolded = names.map(n => `*${n}*`).join(', ');
-        return `New bulletins for ${bolded}.`;
-    }
 }

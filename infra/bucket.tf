@@ -53,11 +53,16 @@ resource "terraform_data" "purge_landing_cache" {
 }
 
 # Make landing assets publicly readable
+# lifecycle: force re-apply when the underlying object is replaced (new content hash)
 resource "google_storage_object_access_control" "landing_page_public" {
   object = google_storage_bucket_object.landing_page.name
   bucket = google_storage_bucket.bras.name
   role   = "READER"
   entity = "allUsers"
+
+  lifecycle {
+    replace_triggered_by = [google_storage_bucket_object.landing_page]
+  }
 }
 
 resource "google_storage_object_access_control" "landing_avatar_public" {
@@ -65,4 +70,8 @@ resource "google_storage_object_access_control" "landing_avatar_public" {
   bucket = google_storage_bucket.bras.name
   role   = "READER"
   entity = "allUsers"
+
+  lifecycle {
+    replace_triggered_by = [google_storage_bucket_object.landing_avatar]
+  }
 }

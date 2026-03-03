@@ -1,6 +1,33 @@
+terraform {
+  required_providers {
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.0"
+    }
+  }
+
+  backend "gcs" {
+    # Must match google_storage_bucket.tfstate.name
+    bucket = "conditions-450312-tfstate"
+    prefix = "terraform/state"
+  }
+}
+
 locals {
-  project_id = "conditions-450312"
-  region     = "europe-west1"
+  project_id     = "conditions-450312"
+  region         = "europe-west1"
+  tfstate_bucket = "${local.project_id}-tfstate"
+}
+
+resource "google_storage_bucket" "tfstate" {
+  name          = local.tfstate_bucket
+  location      = local.region
+  project       = local.project_id
+  force_destroy = false
+
+  versioning {
+    enabled = true
+  }
 }
 
 provider "google" {

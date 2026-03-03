@@ -49,45 +49,49 @@ What we need from a bulletin source to integrate it into conditions:
 | **Bulletin PDF** | No — forecasts are HTML only | No — HTML only | No — HTML only | No — HTML only |
 | **Danger rating** | Yes — 1–5 North American scale with elevation bands (`lower`/`middle`/`upper`) | Yes — 1–5 scale | Yes — 1–5 scale with elevation bands | Yes — 1–5 scale with elevation bands |
 | **Validity period** | Yes (`start_date`/`end_date` on each zone) | Yes (`start_date`/`end_date`) | Yes (`start_date`/`end_date`) | Yes (`start_date`/`end_date`) |
-| **Supplementary images** | No | No | No | No |
+| **Supplementary images** | Yes — media images in S3 (via undocumented `product` endpoint) + avalanche problem icons | No | No | No |
 | **Region geometry** | Yes — GeoJSON polygons in `map-layer` response | Via avalanche.org map-layer | Via avalanche.org map-layer | Via avalanche.org map-layer |
 | **Auth** | None | None (asks for User-Agent with contact email) | Restricted — API shared only with approved partners | None (via avalanche.org) |
 | **License** | Public (US Forest Service / government partnership) | Public | Public (USFS) | Public but [terms](https://avalanche.state.co.us/terms-and-conditions) prohibit "computerized robots or data mining" |
 | **Languages** | `en` | `en` | `en` | `en` |
-| **URL pattern** | Map layer: `api.avalanche.org/v2/public/products/map-layer/{center_id}` Products: `api.avalanche.org/v2/public/products?avalanche_center_id={id}&date_start=...&date_end=...` | `utahavalanchecenter.org/forecast/{region}/json` | Via avalanche.org products API | Via avalanche.org products API |
+| **URL pattern** | Map layer: `api.avalanche.org/v2/public/products/map-layer/{center_id}` Product detail (undocumented): `api.avalanche.org/v2/public/product?type=forecast&center_id={id}&zone_id={zone_id}` Products list: `api.avalanche.org/v2/public/products?avalanche_center_id={id}&date_start=...&date_end=...` | `utahavalanchecenter.org/forecast/{region}/json` | Via avalanche.org products API | Via avalanche.org products API |
 | **URL predictability** | High | High | High | High |
 | **Docs** | [GitHub: Public API Docs](https://github.com/NationalAvalancheCenter/Avalanche.org-Public-API-Docs) | [Forecast JSON docs](https://utahavalanchecenter.org/docs/api/forecast) | Restricted (contact forecasters@nwac.us) | None (`caic-python` [unofficial client](https://github.com/gormaniac/caic-python) available); zones via [ArcGIS Hub](https://dnr-caic.hub.arcgis.com/) |
 
 ### US Avalanche Centers on avalanche.org
 
-The National Avalanche Center (NAC) operates a unified platform at avalanche.org that aggregates forecasts from all US avalanche centers. A single API call to the `map-layer` endpoint returns GeoJSON with danger ratings and zone polygons for the entire country.
+The National Avalanche Center (NAC) operates a unified platform at avalanche.org that aggregates forecasts from all US avalanche centers. A single API call to the `map-layer` endpoint returns GeoJSON with danger ratings and zone polygons for the entire country. As of March 2026: **30 centers, 93 forecast zones**.
 
 | Center ID | Name | State(s) |
 |---|---|---|
+| BAC | Bridgeport Avalanche Center | CA |
 | BTAC | Bridger-Teton Avalanche Center | WY |
+| CAAC | Coastal Alaska Avalanche Center | AK |
+| CAC | Cordova Avalanche Center | AK |
 | CAIC | Colorado Avalanche Information Center | CO |
 | CNFAIC | Chugach National Forest Avalanche Center | AK |
-| CAAC | Alaska Avalanche Center | AK |
-| COAA | Central Oregon Avalanche Association | OR |
-| BAC | Bridgeport Avalanche Center | CA |
+| COAA | Central Oregon Avalanche Center | OR |
 | EARAC | Eastern Alaska Range Avalanche Center | AK |
 | ESAC | Eastern Sierra Avalanche Center | CA |
+| EWYAIX | Eastern Wyoming Avalanche Info Exchange | WY |
 | FAC | Flathead Avalanche Center | MT |
 | GNFAC | Gallatin National Forest Avalanche Center | MT |
 | HAC | Haines Avalanche Center | AK |
 | HPAC | Hatcher Pass Avalanche Center | AK |
-| IPAC | Idaho Panhandle Avalanche Center | ID |
+| IPAC | Idaho Panhandle Avalanche Center | ID, MT |
 | KPAC | Kachina Peaks Avalanche Center | AZ |
 | MSAC | Mount Shasta Avalanche Center | CA |
 | MWAC | Mount Washington Avalanche Center | NH |
 | NWAC | Northwest Avalanche Center | WA, OR |
-| SAC | Sierra Avalanche Center | CA |
-| SNFAC | Sawtooth National Forest Avalanche Center | ID |
-| SPAC | Shasta-area/Payette Avalanche Center | ID |
-| UTAC | Utah Avalanche Center | UT |
-| WCMAC | West Central Montana Avalanche Center | MT |
-| TAC | Taos Avalanche Center | NM |
 | PAC | Payette Avalanche Center | ID |
+| SAC | Sierra Avalanche Center | CA |
+| SNFAC | Sawtooth Avalanche Center | ID |
+| SOAIX | Southern Oregon Avalanche Info Exchange | OR |
+| TAC | Taos Avalanche Center | NM |
+| UAC | Utah Avalanche Center | UT |
+| VAC | Valdez Avalanche Center | AK |
+| WAC | Wallowa Avalanche Center | OR |
+| WCMAC | West Central Montana Avalanche Center | MT |
 
 ### US Integration Assessment
 
@@ -111,12 +115,31 @@ The National Avalanche Center (NAC) operates a unified platform at avalanche.org
 - **HTML `bottom_line` field** — The forecast text is HTML-formatted; needs stripping or rendering for WhatsApp delivery
 - **Some centers publish summaries without danger ratings** — These show `danger_level: -1` ("no rating")
 
+**Undocumented `product` endpoint** (key finding):
+
+An undocumented but functional endpoint returns **full forecast content** including HTML discussion text, avalanche problems, and media:
+
+```
+GET /v2/public/product?type=forecast&center_id={id}&zone_id={zone_feature_id}
+```
+
+Response includes:
+- `bottom_line` — HTML summary of conditions
+- `hazard_discussion` — HTML snowpack/hazard discussion
+- `forecast_avalanche_problems[]` — each with `name`, `likelihood`, `size[]`, `location[]` (aspect × elevation grid), `discussion`, and `media` (S3 image URLs in `thumbnail`/`medium`/`large`/`original` sizes)
+- `media[]` — attached images with S3 URLs at `avalanche-org-media.s3.us-west-2.amazonaws.com`
+- `danger[]` — elevation-banded ratings for `current` and `tomorrow`
+- `avalanche_center` — center metadata including `city`, `state`, `url`
+
+Avalanche problem types: Dry Loose, Storm Slab, Wind Slab, Persistent Slab, Deep Persistent Slab, Wet Loose, Wet Slab, Glide, Cornice. Icons at `api.avalanche.org/img/avalanche_problems/{Name}.png`.
+
 **Important caveats:**
-- The documented `map-layer` API provides **danger ratings only** — it does not return the full forecast text (bottom line, avalanche problems, snowpack discussion). Full forecast content must come from the undocumented `products` endpoint or individual center websites.
+- The **documented** `map-layer` API provides danger ratings and zone polygons only. The `product` endpoint above is **undocumented** — functional but not officially supported.
+- **CAIC and UAC** host their own forecast systems — the `product` endpoint may return empty/sparse data for these centers. Their forecasts must be fetched from their own websites/APIs.
 - **CAIC terms** explicitly prohibit automated data mining. Integration via avalanche.org's aggregated API may sidestep this, but direct scraping of avalanche.state.co.us would violate their terms.
 - **NWAC** has a richer API internally but restricts access to approved partners. NWAC also leads the **AvyWeb/AvyApp** initiative building shared web and mobile tools for multiple centers — this may eventually expose better public APIs.
 
-**Recommended approach:** Integrate avalanche.org as a single `nac` provider using the `map-layer` endpoint for metadata + danger ratings and the `products` endpoint for forecast content. For bulletin delivery, send a danger rating summary with a link to the full web forecast rather than attempting PDF generation, since the HTML forecasts don't map cleanly to a single-page PDF format.
+**Recommended approach:** Integrate avalanche.org as a single `nac` provider. Use `map-layer` for zone discovery + danger ratings, and the `product` endpoint for full forecast content and media where available. For bulletin delivery, send a danger rating summary with avalanche problem icons and a link to the full web forecast. For centers where the `product` endpoint returns sparse data (CAIC, UAC), fall back to the `link` URL from the map-layer response.
 
 ## Notes
 

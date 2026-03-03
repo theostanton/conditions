@@ -51,12 +51,12 @@ What we need from a bulletin source to integrate it into conditions:
 | **Validity period** | Yes (`start_date`/`end_date` on each zone) | Yes (`start_date`/`end_date`) | Yes (`start_date`/`end_date`) | Yes (`start_date`/`end_date`) |
 | **Supplementary images** | No | No | No | No |
 | **Region geometry** | Yes — GeoJSON polygons in `map-layer` response | Via avalanche.org map-layer | Via avalanche.org map-layer | Via avalanche.org map-layer |
-| **Auth** | None | None (asks for User-Agent with contact email) | None (via avalanche.org) | None (via avalanche.org) |
-| **License** | Public (US Forest Service / government partnership) | Public | Public | Public (state government) |
+| **Auth** | None | None (asks for User-Agent with contact email) | Restricted — API shared only with approved partners | None (via avalanche.org) |
+| **License** | Public (US Forest Service / government partnership) | Public | Public (USFS) | Public but [terms](https://avalanche.state.co.us/terms-and-conditions) prohibit "computerized robots or data mining" |
 | **Languages** | `en` | `en` | `en` | `en` |
 | **URL pattern** | Map layer: `api.avalanche.org/v2/public/products/map-layer/{center_id}` Products: `api.avalanche.org/v2/public/products?avalanche_center_id={id}&date_start=...&date_end=...` | `utahavalanchecenter.org/forecast/{region}/json` | Via avalanche.org products API | Via avalanche.org products API |
 | **URL predictability** | High | High | High | High |
-| **Docs** | [GitHub: Public API Docs](https://github.com/NationalAvalancheCenter/Avalanche.org-Public-API-Docs) | [Forecast JSON docs](https://utahavalanchecenter.org/docs/api/forecast) | None (use avalanche.org) | None (`caic-python` [unofficial client](https://github.com/gormaniac/caic-python) available) |
+| **Docs** | [GitHub: Public API Docs](https://github.com/NationalAvalancheCenter/Avalanche.org-Public-API-Docs) | [Forecast JSON docs](https://utahavalanchecenter.org/docs/api/forecast) | Restricted (contact forecasters@nwac.us) | None (`caic-python` [unofficial client](https://github.com/gormaniac/caic-python) available); zones via [ArcGIS Hub](https://dnr-caic.hub.arcgis.com/) |
 
 ### US Avalanche Centers on avalanche.org
 
@@ -111,6 +111,11 @@ The National Avalanche Center (NAC) operates a unified platform at avalanche.org
 - **HTML `bottom_line` field** — The forecast text is HTML-formatted; needs stripping or rendering for WhatsApp delivery
 - **Some centers publish summaries without danger ratings** — These show `danger_level: -1` ("no rating")
 
+**Important caveats:**
+- The documented `map-layer` API provides **danger ratings only** — it does not return the full forecast text (bottom line, avalanche problems, snowpack discussion). Full forecast content must come from the undocumented `products` endpoint or individual center websites.
+- **CAIC terms** explicitly prohibit automated data mining. Integration via avalanche.org's aggregated API may sidestep this, but direct scraping of avalanche.state.co.us would violate their terms.
+- **NWAC** has a richer API internally but restricts access to approved partners. NWAC also leads the **AvyWeb/AvyApp** initiative building shared web and mobile tools for multiple centers — this may eventually expose better public APIs.
+
 **Recommended approach:** Integrate avalanche.org as a single `nac` provider using the `map-layer` endpoint for metadata + danger ratings and the `products` endpoint for forecast content. For bulletin delivery, send a danger rating summary with a link to the full web forecast rather than attempting PDF generation, since the HTML forecasts don't map cleanly to a single-page PDF format.
 
 ## Notes
@@ -129,6 +134,8 @@ The National Avalanche Center (NAC) operates a unified platform at avalanche.org
 - **North American Avalanche Danger Scale** uses the same 1–5 levels as EAWS: Low, Moderate, Considerable, High, Extreme. The scale is functionally identical for integration purposes.
 - **Elevation-banded danger** — US forecasts provide separate danger ratings for `lower`, `middle`, and `upper` elevation bands. The `danger_rating` field on the product is the overall max. For display, consider showing the max or the most relevant band for the user's intended elevation.
 - **UAC** has its own [documented JSON API](https://utahavalanchecenter.org/docs/api/forecast) that returns richer forecast data than the avalanche.org products endpoint. Could be used as a supplementary source for Utah zones.
-- **CAIC** uses "dynamic forecast zones" that can change boundaries based on conditions — a unique feature among US centers. Their zones are available via the avalanche.org map-layer endpoint.
+- **CAIC** uses "dynamic forecast zones" that can change boundaries based on conditions — a unique feature among US centers. Their zones are available via the avalanche.org map-layer endpoint and the [ArcGIS Hub](https://dnr-caic.hub.arcgis.com/) (GeoJSON, KML, Shapefile). Note: CAIC is a state agency (Colorado DNR), not USFS, and has [restrictive data terms](https://avalanche.state.co.us/terms-and-conditions).
+- **NWAC** leads the **AvyWeb/AvyApp** initiative — a shared website and mobile platform already adopted by Sierra and Sawtooth centers. This modernization effort may eventually standardize APIs across participating centers.
+- **CAAMLv6 is not used in the US.** The US uses the North American Danger Scale and avalanche.org's proprietary JSON format. There is no equivalent to Europe's EAWS standardized bulletin exchange.
 - **`caic-python`** ([github.com/gormaniac/caic-python](https://github.com/gormaniac/caic-python)) is an unofficial async Python client for CAIC's undocumented HTTP APIs — useful as a reference for Colorado-specific data patterns.
 - **Avalanche Canada** ([docs.avalanche.ca](https://docs.avalanche.ca/)) has a well-documented public Products API that's worth studying for comparison — similar structure to avalanche.org but with better documentation.

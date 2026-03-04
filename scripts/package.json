@@ -5,6 +5,8 @@
   "types": "../types/types.d.ts",
   "scripts": {
     "update-massifs": "tsx update_massifs.ts",
+    "seed-eaws-regions": "tsx seed_eaws_regions.ts",
+    "seed-slf-regions": "tsx seed_slf_regions.ts",
     "broadcast-whatsapp-announcement": "tsx  broadcast-whatsapp-announcement.ts",
     "set-bot-commands": "tsx set-bot-commands.ts",
     "test-template": "tsx test-template.ts"

@@ -3,21 +3,21 @@ import {BulletinInfos, Platform, Subscription} from "@app-types";
 import {Analytics} from "@analytics/Analytics";
 
 type SubscriptionRow = {
-    massif: number,
+    massif: string,
     recipients: string
 }
 
 export namespace Database {
-    export async function getMassifsWithSubscribers(platform?: Platform): Promise<number[]> {
+    export async function getMassifsWithSubscribers(platform?: Platform): Promise<string[]> {
         try {
             const client = await getClient();
             const result = platform
                 ? await client.query<Pick<BulletinInfos, "massif">>(
-                    "select concat(massif) as massif from bra_subscriptions where platform = $1 group by massif",
+                    "select massif from bra_subscriptions where platform = $1 group by massif",
                     [platform]
                 )
                 : await client.query<Pick<BulletinInfos, "massif">>(
-                    "select concat(massif) as massif from bra_subscriptions group by massif"
+                    "select massif from bra_subscriptions group by massif"
                 );
             return [...result].map(s => s.massif);
         } catch (error) {
@@ -57,7 +57,7 @@ export namespace Database {
     }
 
     export async function insertBulletin(
-        massif: number,
+        massif: string,
         filename: string,
         publicUrl: string,
         validFrom: Date,
@@ -72,7 +72,7 @@ export namespace Database {
         console.log(`Inserted into database`);
     }
 
-    export async function getMassifName(massifCode: number): Promise<string> {
+    export async function getMassifName(massifCode: string): Promise<string> {
         const client = await getClient();
         const result = await client.query<{ name: string }>(
             "select name from massifs where code=$1",
@@ -81,13 +81,13 @@ export namespace Database {
         return [...result][0].name;
     }
 
-    export async function getMassifNames(massifCodes: number[]): Promise<Array<{ code: number; name: string }>> {
+    export async function getMassifNames(massifCodes: string[]): Promise<Array<{ code: string; name: string }>> {
         if (massifCodes.length === 0) {
             return [];
         }
         const client = await getClient();
         const placeholders = massifCodes.map((_, i) => `$${i + 1}`).join(',');
-        const result = await client.query<{ code: number; name: string }>(
+        const result = await client.query<{ code: string; name: string }>(
             `select code, name from massifs where code in (${placeholders})`,
             massifCodes
         );
@@ -96,7 +96,7 @@ export namespace Database {
 
     export async function insertBulletins(
         bulletins: Array<{
-            massif: number;
+            massif: string;
             filename: string;
             publicUrl: string;
             validFrom: Date;
@@ -157,7 +157,7 @@ export namespace Database {
         }
     }
 
-    export async function getSubscriptionsByRecipients(recipients: string[], massif: number, platform: Platform = 'telegram'): Promise<Subscription[]> {
+    export async function getSubscriptionsByRecipients(recipients: string[], massif: string, platform: Platform = 'telegram'): Promise<Subscription[]> {
         if (recipients.length === 0) {
             return [];
         }
@@ -173,7 +173,7 @@ export namespace Database {
 
         return result.rows.map(row => ({
             recipient: row.get('recipient') as string,
-            massif: row.get('massif') as number,
+            massif: row.get('massif') as string,
             platform: row.get('platform') as Platform,
             bulletin: row.get('bulletin') as boolean,
             snow_report: row.get('snow_report') as boolean,
@@ -186,7 +186,7 @@ export namespace Database {
     }
 
     export async function getValidBulletins(): Promise<Array<{
-        massif: number;
+        massif: string;
         filename: string;
         public_url: string;
         valid_from: Date;
@@ -202,7 +202,7 @@ export namespace Database {
                  ORDER BY massif, valid_to DESC, valid_from DESC`
             );
             return result.rows.map(row => ({
-                massif: row.get('massif') as number,
+                massif: row.get('massif') as string,
                 filename: row.get('filename') as string,
                 public_url: row.get('public_url') as string,
                 valid_from: row.get('valid_from') as Date,

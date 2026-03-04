@@ -10,7 +10,7 @@ import {Analytics} from "@analytics/Analytics";
 // Store temporary content type selections for managing subscriptions
 const managementSelections = new Map<string, Partial<ContentTypes>>();
 
-function getManagementKey(userId: number, massifCode: number): string {
+function getManagementKey(userId: number, massifCode: string): string {
     return `manage:${userId}:${massifCode}`;
 }
 
@@ -22,7 +22,7 @@ async function handleSubscribeCallback(ctx: Context): Promise<void> {
         return;
     }
 
-    const massifCode = parseInt(ctx.callbackQuery.data.split(':')[1]);
+    const massifCode = ctx.callbackQuery.data.split(':')[1];
     const massif = MassifCache.findByCode(massifCode);
 
     if (!massif) {
@@ -63,7 +63,7 @@ async function handleManageSubscriptionCallback(ctx: Context): Promise<void> {
         return;
     }
 
-    const massifCode = parseInt(ctx.callbackQuery.data.split(':')[1]);
+    const massifCode = ctx.callbackQuery.data.split(':')[1];
     const massif = MassifCache.findByCode(massifCode);
 
     if (!massif) {
@@ -192,7 +192,7 @@ async function handleSubscribeToggle(ctx: Context): Promise<void> {
     if (!ctx.callbackQuery?.data || !ctx.from?.id) return;
 
     const [, massifCode, contentType] = ctx.callbackQuery.data.split(':');
-    const massif = MassifCache.findByCode(parseInt(massifCode));
+    const massif = MassifCache.findByCode(massifCode);
 
     if (!massif) return;
 
@@ -221,7 +221,7 @@ async function handleManageToggle(ctx: Context): Promise<void> {
     if (!ctx.callbackQuery?.data || !ctx.from?.id) return;
 
     const [, massifCode, contentType] = ctx.callbackQuery.data.split(':');
-    const massif = MassifCache.findByCode(parseInt(massifCode));
+    const massif = MassifCache.findByCode(massifCode);
 
     if (!massif) return;
 
@@ -247,7 +247,7 @@ async function handleManageToggle(ctx: Context): Promise<void> {
 async function handleSubscribeSave(ctx: Context): Promise<void> {
     if (!ctx.callbackQuery?.data || !ctx.from?.id) return;
 
-    const massifCode = parseInt(ctx.callbackQuery.data.split(':')[1]);
+    const massifCode = ctx.callbackQuery.data.split(':')[1];
     const massif = MassifCache.findByCode(massifCode);
 
     if (!massif) {
@@ -291,7 +291,7 @@ async function handleSubscribeSave(ctx: Context): Promise<void> {
 async function handleManageSave(ctx: Context): Promise<void> {
     if (!ctx.callbackQuery?.data || !ctx.from?.id) return;
 
-    const massifCode = parseInt(ctx.callbackQuery.data.split(':')[1]);
+    const massifCode = ctx.callbackQuery.data.split(':')[1];
     const massif = MassifCache.findByCode(massifCode);
 
     if (!massif) {
@@ -336,7 +336,7 @@ async function handleManageSave(ctx: Context): Promise<void> {
 async function handleManageUnsubscribe(ctx: Context): Promise<void> {
     if (!ctx.callbackQuery?.data || !ctx.from?.id) return;
 
-    const massifCode = parseInt(ctx.callbackQuery.data.split(':')[1]);
+    const massifCode = ctx.callbackQuery.data.split(':')[1];
     const massif = MassifCache.findByCode(massifCode);
 
     if (!massif) {
@@ -383,10 +383,10 @@ async function handleCancel(ctx: Context): Promise<void> {
     const isManagement = action.startsWith('manage_');
 
     if (isManagement) {
-        const key = getManagementKey(ctx.from.id, parseInt(massifCode));
+        const key = getManagementKey(ctx.from.id, massifCode);
         managementSelections.delete(key);
     } else {
-        const massif = MassifCache.findByCode(parseInt(massifCode));
+        const massif = MassifCache.findByCode(massifCode);
         if (massif) {
             ActionSubscriptions.clearContentTypes(ctx.from.id, massif);
         }
@@ -410,22 +410,22 @@ async function handleCancel(ctx: Context): Promise<void> {
  * Register all subscription-related callback handlers with the bot
  */
 export function registerSubscriptionCallbacks(bot: Bot): void {
-    // Main action callbacks
-    bot.callbackQuery(/^subscribe:\d+$/, handleSubscribeCallback);
-    bot.callbackQuery(/^manage_subscription:\d+$/, handleManageSubscriptionCallback);
+    // Main action callbacks — [\w\-/.]+ matches alphanumeric, hyphens, slashes (for region codes like AT-07, BTAC/teton)
+    bot.callbackQuery(/^subscribe:[\w\-/.]+$/, handleSubscribeCallback);
+    bot.callbackQuery(/^manage_subscription:[\w\-/.]+$/, handleManageSubscriptionCallback);
 
     // Toggle callbacks
-    bot.callbackQuery(/^subscribe_toggle:\d+:\w+$/, handleSubscribeToggle);
-    bot.callbackQuery(/^manage_toggle:\d+:\w+$/, handleManageToggle);
+    bot.callbackQuery(/^subscribe_toggle:[\w\-/.]+:\w+$/, handleSubscribeToggle);
+    bot.callbackQuery(/^manage_toggle:[\w\-/.]+:\w+$/, handleManageToggle);
 
     // Save callbacks
-    bot.callbackQuery(/^subscribe_save:\d+$/, handleSubscribeSave);
-    bot.callbackQuery(/^manage_save:\d+$/, handleManageSave);
+    bot.callbackQuery(/^subscribe_save:[\w\-/.]+$/, handleSubscribeSave);
+    bot.callbackQuery(/^manage_save:[\w\-/.]+$/, handleManageSave);
 
     // Unsubscribe callback
-    bot.callbackQuery(/^manage_unsubscribe:\d+$/, handleManageUnsubscribe);
+    bot.callbackQuery(/^manage_unsubscribe:[\w\-/.]+$/, handleManageUnsubscribe);
 
     // Cancel callbacks
-    bot.callbackQuery(/^subscribe_cancel:\d+$/, handleCancel);
-    bot.callbackQuery(/^manage_cancel:\d+$/, handleCancel);
+    bot.callbackQuery(/^subscribe_cancel:[\w\-/.]+$/, handleCancel);
+    bot.callbackQuery(/^manage_cancel:[\w\-/.]+$/, handleCancel);
 }

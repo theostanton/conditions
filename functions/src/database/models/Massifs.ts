@@ -6,7 +6,7 @@ export namespace Massifs {
     export async function getAllForRecipient(userId: number): Promise<Massif[]> {
         const client = await getClient();
         const result = await client.query<Massif>(
-            "SELECT m.name, m.code, m.mountain FROM bra_subscriptions as sb left join massifs m on sb.massif = m.code WHERE sb.recipient = $1",
+            "SELECT m.name, m.code, m.mountain, m.provider, m.country FROM bra_subscriptions as sb left join massifs m on sb.massif = m.code WHERE sb.recipient = $1",
             [userId]
         );
         return [...result];
@@ -14,7 +14,7 @@ export namespace Massifs {
 
     export async function getAll(): Promise<Massif[]> {
         const client = await getClient();
-        const result = await client.query<Massif>("SELECT name, code, mountain, geometry FROM massifs ORDER BY name");
+        const result = await client.query<Massif>("SELECT name, code, mountain, geometry, provider, country FROM massifs ORDER BY name");
         return [...result];
     }
 

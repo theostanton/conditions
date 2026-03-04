@@ -12,7 +12,7 @@ import {Deliveries} from "@database/models/Deliveries";
 // Store temporary content type selections for each user/massif combination
 const contentTypeSelections = new Map<string, Partial<ContentTypes>>();
 
-function getSelectionKey(userId: number, massifCode: number): string {
+function getSelectionKey(userId: number, massifCode: string): string {
     return `${userId}:${massifCode}`;
 }
 

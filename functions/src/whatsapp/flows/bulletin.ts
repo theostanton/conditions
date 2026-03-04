@@ -62,7 +62,7 @@ export namespace BulletinFlow {
         return {step: 'select_massif', mountain};
     }
 
-    export async function deliverAndPromptSubscribe(to: string, massifCode: number, reactTo?: {
+    export async function deliverAndPromptSubscribe(to: string, massifCode: string, reactTo?: {
         messageId: string
     }, geocodeQuery?: string): Promise<void> {
         const massif = MassifCache.findByCode(massifCode);
@@ -161,7 +161,7 @@ export namespace BulletinFlow {
         );
     }
 
-    export async function unsubscribe(to: string, massifCode: number): Promise<void> {
+    export async function unsubscribe(to: string, massifCode: string): Promise<void> {
         const massif = MassifCache.findByCode(massifCode);
         if (!massif) {
             await WhatsAppClient.sendText(to, Messages.massifNotFound);

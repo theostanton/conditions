@@ -327,8 +327,8 @@ export namespace WhatsAppRouter {
 
         // Unsubscribe
         if (callbackId.startsWith('unsub:')) {
-            const massifCode = parseInt(callbackId.substring('unsub:'.length), 10);
-            if (!isNaN(massifCode)) {
+            const massifCode = callbackId.substring('unsub:'.length);
+            if (massifCode) {
                 await BulletinFlow.unsubscribe(from, massifCode);
             }
             clearState(from);
@@ -355,8 +355,8 @@ export namespace WhatsAppRouter {
 
         // Browse flow: massif selection → deliver bulletin
         if (callbackId.startsWith('br:mas:')) {
-            const massifCode = parseInt(callbackId.substring('br:mas:'.length), 10);
-            if (!isNaN(massifCode)) {
+            const massifCode = callbackId.substring('br:mas:'.length);
+            if (massifCode) {
                 clearState(from);
                 await BulletinFlow.deliverAndPromptSubscribe(from, massifCode);
             }

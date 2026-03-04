@@ -7,6 +7,8 @@ export namespace MassifCache {
     let allMassifs: Massif[] = [];
     let mountainsCache: string[] = [];
     let massifsByMountain: Map<string, Massif[]> = new Map();
+    let countriesCache: string[] = [];
+    let massifsByCountry: Map<string, Massif[]> = new Map();
 
     export async function initialize(): Promise<void> {
         console.log('Initializing massif cache...');
@@ -28,7 +30,20 @@ export namespace MassifCache {
             massifsByMountain.set(mountain, massifsForMountain);
         }
 
-        console.log(`Cached ${allMassifs.length} massifs across ${mountainsCache.length} mountains`);
+        // Pre-group massifs by country
+        const countries = allMassifs
+            .map(m => m.country)
+            .filter((c): c is string => !!c);
+        countriesCache = [...new Set(countries)].sort();
+
+        for (const country of countriesCache) {
+            const massifsForCountry = allMassifs
+                .filter(m => m.country === country)
+                .sort((a, b) => a.name.localeCompare(b.name));
+            massifsByCountry.set(country, massifsForCountry);
+        }
+
+        console.log(`Cached ${allMassifs.length} massifs across ${mountainsCache.length} mountains, ${countriesCache.length} countries`);
     }
 
     export function getMountains(): string[] {
@@ -39,11 +54,19 @@ export namespace MassifCache {
         return massifsByMountain.get(mountain) || [];
     }
 
+    export function getCountries(): string[] {
+        return countriesCache;
+    }
+
+    export function getByCountry(country: string): Massif[] {
+        return massifsByCountry.get(country) || [];
+    }
+
     export function getAll(): Massif[] {
         return allMassifs;
     }
 
-    export function findByCode(code: number): Massif | undefined {
+    export function findByCode(code: string): Massif | undefined {
         return allMassifs.find(m => m.code === code);
     }
 

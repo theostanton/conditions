@@ -8,6 +8,7 @@ import {CONTENT_TYPE_CONFIGS} from "@constants/contentTypes";
 import {ActionSubscriptions} from "@bot/actions/subscriptions";
 import {CommandSubscriptions} from "@bot/commands/subscriptions";
 import {BotMessages} from "@bot/messages";
+import {getProviderForRegion} from "@providers/registry";
 
 export namespace CommandGet {
 
@@ -59,33 +60,6 @@ export namespace CommandGet {
             );
         }).row();
 
-
-        // Add Subscribe button to switch to subscriptions menu
-        // contentTypeMenu.text("Subscribe", async (ctx) => {
-        //     if (!ctx.from?.id) return;
-        //
-        //     try {
-        //         // Initialize content types for subscription (default: bulletin only)
-        //         ActionSubscriptions.initializeContentTypes(ctx.from.id, massif);
-        //
-        //         // Get the target subscriptions menu
-        //         const subsMenu = CommandSubscriptions.getContentTypeMenu(massif.code);
-        //         if (!subsMenu) {
-        //             console.error(`Subscriptions menu not found for massif ${massif.code}`);
-        //             return;
-        //         }
-        //
-        //         // Update the message text and reply markup to the subscriptions menu
-        //         await ctx.editMessageText(BotMessages.menuHeaders.chooseContent(massif.name), {
-        //             parse_mode: BotMessages.parseMode,
-        //             reply_markup: subsMenu
-        //         }).catch(err => {
-        //             console.error('Error updating message:', err);
-        //         });
-        //     } catch (err) {
-        //         console.error('Error navigating to subscriptions:', err);
-        //     }
-        // }).row();
 
         // Add "All Content" button
         const allContentTypes: ContentTypes = {
@@ -175,6 +149,12 @@ export namespace CommandGet {
     function buildMountainMenu(): Menu {
         const mountainMenu = new Menu<Context>("get-mountains");
 
+        mountainMenu.back("← Back", async (ctx) => {
+            await ctx.editMessageText(BotMessages.menuHeaders.selectCountry, {parse_mode: BotMessages.parseMode}).catch(err =>
+                console.error('Error updating message text:', err)
+            );
+        }).row();
+
         // Build the dynamic mountain selection menu FIRST
         mountainMenu.dynamic((_ctx, range) => {
             const mountains = MassifCache.getMountains();
@@ -197,21 +177,123 @@ export namespace CommandGet {
         return mountainMenu;
     }
 
-    function commandGet(mountainMenu: Menu): (context: Context) => Promise<void> {
+    /**
+     * Build a region menu for a non-France country.
+     * Since EAWS/SLF providers only have 'bulletin' content type,
+     * selecting a region delivers the bulletin directly (no content type submenu).
+     */
+    function buildRegionMenu(country: string): Menu {
+        const regionMenu = new Menu<Context>(`get-regions-${country}`);
+
+        regionMenu.back("← Back", async (ctx) => {
+            await ctx.editMessageText(BotMessages.menuHeaders.selectCountry, {parse_mode: BotMessages.parseMode}).catch(err =>
+                console.error('Error updating message text:', err)
+            );
+        }).row();
+
+        regionMenu.dynamic((_ctx, range) => {
+            const regions = MassifCache.getByCountry(country);
+
+            for (const region of regions) {
+                const provider = getProviderForRegion(region.code);
+                const contentTypes = provider?.getAvailableContentTypes() ?? ['bulletin'];
+
+                if (contentTypes.length === 1 && contentTypes[0] === 'bulletin') {
+                    // Single content type — deliver directly
+                    range.text(region.name, async (ctx) => {
+                        try {
+                            const bulletinOnly: ContentTypes = {
+                                bulletin: true, snow_report: false, fresh_snow: false,
+                                weather: false, last_7_days: false, rose_pentes: false, montagne_risques: false,
+                            };
+                            await ActionBulletins.send(ctx, region, true, bulletinOnly);
+                            Analytics.send(`${ctx.from?.id} got ${region.name} - bulletin`).catch(console.error);
+                        } catch (error) {
+                            console.error(`Error sending bulletin for ${region.name}:`, error);
+                            try { await ctx.reply('Failed to send bulletin. Please try again.'); } catch {}
+                        }
+                    }).row();
+                } else {
+                    // Multiple content types — use submenu (same as French massifs)
+                    range.submenu(region.name, `get-content-${region.code}`, async (ctx) => {
+                        await ctx.editMessageText(BotMessages.menuHeaders.download(region.name), {parse_mode: BotMessages.parseMode}).catch(err =>
+                            console.error('Error updating message text:', err)
+                        );
+                    }).row();
+                }
+            }
+        });
+
+        // Register content type menus for regions that have multiple content types
+        const regions = MassifCache.getByCountry(country);
+        for (const region of regions) {
+            const provider = getProviderForRegion(region.code);
+            const contentTypes = provider?.getAvailableContentTypes() ?? ['bulletin'];
+            if (contentTypes.length > 1) {
+                const contentTypeMenu = buildContentTypeMenu(region);
+                regionMenu.register(contentTypeMenu);
+            }
+        }
+
+        return regionMenu;
+    }
+
+    function buildCountryMenu(): Menu {
+        const countryMenu = new Menu<Context>("get-countries");
+
+        // Build the dynamic country selection menu
+        countryMenu.dynamic((_ctx, range) => {
+            const countries = MassifCache.getCountries();
+            for (const country of countries) {
+                if (country === 'France') {
+                    // France → existing mountain menu
+                    range.submenu(country, "get-mountains", async (ctx) => {
+                        await ctx.editMessageText(BotMessages.menuHeaders.selectRange, {parse_mode: BotMessages.parseMode}).catch(err =>
+                            console.error('Error updating message text:', err)
+                        );
+                    }).row();
+                } else {
+                    // Other countries → region list
+                    range.submenu(country, `get-regions-${country}`, async (ctx) => {
+                        await ctx.editMessageText(BotMessages.menuHeaders.selectRegion(country), {parse_mode: BotMessages.parseMode}).catch(err =>
+                            console.error('Error updating message text:', err)
+                        );
+                    }).row();
+                }
+            }
+        });
+
+        // Register the mountain menu (France)
+        const mountainMenu = buildMountainMenu();
+        countryMenu.register(mountainMenu);
+
+        // Register region menus for non-France countries
+        const countries = MassifCache.getCountries();
+        for (const country of countries) {
+            if (country !== 'France') {
+                const regionMenu = buildRegionMenu(country);
+                countryMenu.register(regionMenu);
+            }
+        }
+
+        return countryMenu;
+    }
+
+    function commandGet(countryMenu: Menu): (context: Context) => Promise<void> {
         return async (context: Context) => {
             if (!context.from?.id) {
                 await context.reply(BotMessages.errors.unableToIdentifyUser);
                 return;
             }
-            await context.reply(BotMessages.menuHeaders.selectRange, {
-                reply_markup: mountainMenu,
+            await context.reply(BotMessages.menuHeaders.selectCountry, {
+                reply_markup: countryMenu,
                 parse_mode: BotMessages.parseMode
             });
         };
     }
 
     export async function attach(bot: Bot): Promise<Menu> {
-        const menu = buildMountainMenu();
+        const menu = buildCountryMenu();
         bot.use(menu);
 
         // Also register all content type menus directly with the bot

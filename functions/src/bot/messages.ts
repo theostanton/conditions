@@ -6,7 +6,9 @@
 export const BotMessages = {
     // Menu Headers (with HTML formatting)
     menuHeaders: {
+        selectCountry: "<b>Choose a country</b>",
         selectRange: "<b>Choose mountain range</b>",
+        selectRegion: (country: string) => `<b>Choose region in ${country}</b>`,
         selectMassif: (mountain: string) => `<b>Choose massif in ${mountain}</b>`,
         download: (massifName: string) => `<b>Download conditions in ${massifName}</b>`,
         chooseContent: (massifName: string) => `<b>Choose content for ${massifName}</b>`,

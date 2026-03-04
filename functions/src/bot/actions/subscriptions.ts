@@ -137,6 +137,36 @@ export namespace ActionSubscriptions {
         }
     }
 
+    /** Subscribe with bulletin-only content type (for single-content-type providers). */
+    export async function subscribeBulletinOnly(context: Context & MenuFlavor, massif: Massif): Promise<void> {
+        try {
+            if (!context.from?.id) {
+                await context.reply(BotMessages.errors.unableToIdentifyUser);
+                return;
+            }
+
+            const contentTypes: Partial<ContentTypes> = {bulletin: true};
+            await Subscriptions.subscribe(context.from.id.toString(), massif, contentTypes);
+
+            // Update menu immediately to reflect the change
+            if (context.callbackQuery?.message) {
+                await context.menu.update({immediate: true}).catch(err =>
+                    console.error('Error updating menu:', err)
+                );
+            }
+
+            // Send welcome content asynchronously
+            sendWelcomeContent(context, massif, contentTypes).catch(err =>
+                console.error('Error sending welcome content:', err)
+            );
+
+            Analytics.send(`${context.from.id} subscribed to ${massif.name} (bulletin only)`).catch(console.error);
+        } catch (error) {
+            console.error('Error subscribing:', error);
+            await context.reply(BotMessages.errors.updateSubscriptionRetry(massif.name));
+        }
+    }
+
     export async function unsubscribe(context: Context & MenuFlavor, massif: Massif): Promise<void> {
         try {
             if (!context.from?.id) {

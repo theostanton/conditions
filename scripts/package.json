@@ -5,12 +5,17 @@
   "types": "../types/types.d.ts",
   "scripts": {
     "update-massifs": "tsx update_massifs.ts",
+    "seed-eaws-regions": "tsx seed_eaws_regions.ts",
+    "seed-slf-regions": "tsx seed_slf_regions.ts",
+    "seed-geometries": "tsx seed_geometries.ts",
     "broadcast-whatsapp-announcement": "tsx  broadcast-whatsapp-announcement.ts",
     "set-bot-commands": "tsx set-bot-commands.ts",
     "test-template": "tsx test-template.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.15.1",
+    "@turf/helpers": "^7.3.4",
+    "@turf/union": "^7.3.4",
     "dotenv": "^17.2.3",
     "pg-format": "^1.0.4",
     "ts-postgres": "^2.0.4",

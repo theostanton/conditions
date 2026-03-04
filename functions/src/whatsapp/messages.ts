@@ -7,14 +7,14 @@
  *   • Help text is kept short outside of the welcome message.
  */
 
-const HELP_SHORT = 'Send a place name, share your location, or browse all massifs.';
+const HELP_SHORT = 'Send a place name, share your location, or browse regions.';
 
 export namespace Messages {
 
     // ── Welcome & help ──────────────────────────────────────────────
 
     export const welcome =
-        `🏔️ Welcome to Conditions!\n\nSend a place name, share your location or browse all massifs to get an avalanche bulletin.`;
+        `🏔️ Welcome to Conditions!\n\nSend a place name, share your location or browse regions to get an avalanche bulletin.`;
 
     export const error = 'Something went wrong. Please try again.';
 
@@ -36,6 +36,22 @@ export namespace Messages {
         `No massif found at your location.\n\nTry a massif name or browse the list.`;
 
     // ── Browse flow ─────────────────────────────────────────────────
+
+    export function chooseCountry(page: number): string {
+        return page > 0
+            ? `Countries (page ${page + 1}):`
+            : 'Choose a country.';
+    }
+
+    export function chooseRegion(country: string, page: number): string {
+        return page > 0
+            ? `Regions in *${country}* (page ${page + 1}):`
+            : `Choose a region in *${country}*.`;
+    }
+
+    export function noRegionsInCountry(country: string): string {
+        return `No regions found in *${country}*.`;
+    }
 
     export function chooseMountain(page: number): string {
         return page > 0

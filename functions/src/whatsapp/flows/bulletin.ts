@@ -14,6 +14,54 @@ const PAGE_SIZE = 9;
 
 export namespace BulletinFlow {
 
+    export async function showCountries(to: string, page: number = 0): Promise<Partial<ConversationState>> {
+        const countries = MassifCache.getCountries();
+        const rows = paginate(
+            countries.map(c => ({id: `br:cty:${c}`, title: c.substring(0, 24)})),
+            page,
+            `br:ctypage:${page + 1}`,
+        );
+
+        const sections: ListSection[] = [{title: 'Countries', rows}];
+
+        await WhatsAppClient.sendListMessage(
+            to,
+            Messages.chooseCountry(page),
+            'Select country',
+            sections,
+            'Countries',
+        );
+
+        return {step: 'select_country'};
+    }
+
+    export async function showRegions(to: string, country: string, page: number = 0): Promise<Partial<ConversationState>> {
+        const massifs = MassifCache.getByCountry(country);
+
+        if (massifs.length === 0) {
+            await WhatsAppClient.sendText(to, Messages.noRegionsInCountry(country));
+            return {step: 'idle'};
+        }
+
+        const rows = paginate(
+            massifs.map(m => ({id: `br:mas:${m.code}`, title: m.name.substring(0, 24)})),
+            page,
+            `br:regpage:${country}:${page + 1}`,
+        );
+
+        const sections: ListSection[] = [{title: country.substring(0, 24), rows}];
+
+        await WhatsAppClient.sendListMessage(
+            to,
+            Messages.chooseRegion(country, page),
+            'Select region',
+            sections,
+            country.substring(0, 60),
+        );
+
+        return {step: 'select_region', country};
+    }
+
     export async function showMountains(to: string, page: number = 0): Promise<Partial<ConversationState>> {
         const mountains = MassifCache.getMountains();
         const rows = paginate(

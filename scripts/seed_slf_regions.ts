@@ -13,18 +13,29 @@ import {MassifRow} from "./types";
  * Groups based on SLF's own regional breakdown:
  * https://www.slf.ch/en/avalanche-bulletin-and-snow-situation.html
  */
+/**
+ * SLF micro-regions use CH-XXYY format. We group at the CH-XX level.
+ * E.g. CH-11 matches CH-1111, CH-1112, CH-1113, CH-1114, CH-1121, CH-1122
+ */
 const SLF_REGIONS: MassifRow[] = [
-    {code: 'CH-1100', name: 'Bernese Oberland', provider: 'slf', country: 'Switzerland'},
-    {code: 'CH-1200', name: 'Central Switzerland', provider: 'slf', country: 'Switzerland'},
-    {code: 'CH-2100', name: 'Fribourg Alps', provider: 'slf', country: 'Switzerland'},
-    {code: 'CH-2200', name: 'Vaud Alps', provider: 'slf', country: 'Switzerland'},
-    {code: 'CH-3100', name: 'Lower Valais', provider: 'slf', country: 'Switzerland'},
-    {code: 'CH-3200', name: 'Upper Valais', provider: 'slf', country: 'Switzerland'},
-    {code: 'CH-4100', name: 'Ticino', provider: 'slf', country: 'Switzerland'},
-    {code: 'CH-5100', name: 'Eastern Bernese Alps', provider: 'slf', country: 'Switzerland'},
-    {code: 'CH-6100', name: 'Glarus Alps', provider: 'slf', country: 'Switzerland'},
-    {code: 'CH-7100', name: 'Graubünden North', provider: 'slf', country: 'Switzerland'},
-    {code: 'CH-7200', name: 'Graubünden South', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-11', name: 'Bernese Oberland', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-12', name: 'Central Switzerland', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-13', name: 'Bern South', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-21', name: 'Fribourg Alps', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-22', name: 'Vaud Alps', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-31', name: 'Lower Valais', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-32', name: 'Upper Valais', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-33', name: 'Simplon', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-41', name: 'Northern Ticino', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-42', name: 'Southern Ticino', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-51', name: 'Eastern Bernese Alps', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-52', name: 'Uri / Schwyz Alps', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-61', name: 'Glarus Alps', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-62', name: 'Appenzell Alps', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-71', name: 'Graubünden North', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-72', name: 'Graubünden South', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-81', name: 'Eastern Graubünden', provider: 'slf', country: 'Switzerland'},
+    {code: 'CH-82', name: 'Engadin', provider: 'slf', country: 'Switzerland'},
 ];
 
 async function insert(massifs: MassifRow[]): Promise<void> {

@@ -50,7 +50,9 @@ export function parseDangerRating(text: string): number | undefined {
  */
 export function parseBulletinForRegion(json: CAAMLv6Response, regionCode: string): BulletinMetadata | undefined {
     for (const bulletin of json.bulletins) {
-        const matchesRegion = bulletin.regions?.some(r => r.regionID === regionCode);
+        // Prefix match: our seeded codes (e.g. "AT-07", "CH-11") are prefixes
+        // of micro-region IDs in the bulletin (e.g. "AT-07-14-01", "CH-1111")
+        const matchesRegion = bulletin.regions?.some(r => r.regionID.startsWith(regionCode));
         if (!matchesRegion) continue;
 
         const validFrom = bulletin.validTime?.startTime

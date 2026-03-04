@@ -8,8 +8,9 @@ import {geocode} from "@utils/geocode";
 import {GeocodeCache} from "@database/models/GeocodeCache";
 
 export interface ConversationState {
-    step: 'idle' | 'select_mountain' | 'select_massif';
+    step: 'idle' | 'select_country' | 'select_mountain' | 'select_massif' | 'select_region';
     mountain?: string;
+    country?: string;
     lastActivity: number;
 }
 
@@ -56,7 +57,7 @@ async function sendWelcome(to: string): Promise<void> {
     await WhatsAppClient.sendReplyButtons(
         to,
         Messages.welcome,
-        [{id: 'menu:browse', title: '🗺️ Browse all massifs'}],
+        [{id: 'menu:browse', title: '🗺️ Browse regions'}],
     );
 }
 
@@ -245,7 +246,7 @@ export namespace WhatsAppRouter {
                     await WhatsAppClient.sendReplyButtons(
                         from,
                         Messages.outsideCoverage(query),
-                        [{id: 'menu:browse', title: '🗺️ Browse all massifs'}],
+                        [{id: 'menu:browse', title: '🗺️ Browse regions'}],
                     );
                 }
             } else {
@@ -255,7 +256,7 @@ export namespace WhatsAppRouter {
                 await WhatsAppClient.sendReplyButtons(
                     from,
                     Messages.noResultsFor(query),
-                    [{id: 'menu:browse', title: '🗺️ Browse all massifs'}],
+                    [{id: 'menu:browse', title: '🗺️ Browse regions'}],
                 );
             }
             return;
@@ -301,7 +302,7 @@ export namespace WhatsAppRouter {
             await WhatsAppClient.sendReplyButtons(
                 from,
                 Messages.locationNotFound,
-                [{id: 'menu:browse', title: '🗺️ Browse massifs'}],
+                [{id: 'menu:browse', title: '🗺️ Browse regions'}],
             );
             return;
         }
@@ -311,9 +312,9 @@ export namespace WhatsAppRouter {
     }
 
     async function handleCallback(from: string, callbackId: string): Promise<void> {
-        // Browse massifs (from "no match" fallback)
+        // Browse regions (top-level entry point)
         if (callbackId === 'menu:browse') {
-            const newState = await BulletinFlow.showMountains(from);
+            const newState = await BulletinFlow.showCountries(from);
             setState(from, newState);
             return;
         }
@@ -335,7 +336,45 @@ export namespace WhatsAppRouter {
             return;
         }
 
-        // Browse flow: mountain selection
+        // Browse flow: country selection
+        if (callbackId.startsWith('br:cty:')) {
+            const country = callbackId.substring('br:cty:'.length);
+            if (country === 'France') {
+                // France keeps the existing Mountain → Massif flow
+                const newState = await BulletinFlow.showMountains(from);
+                setState(from, newState);
+            } else {
+                const newState = await BulletinFlow.showRegions(from, country);
+                setState(from, newState);
+            }
+            return;
+        }
+
+        // Browse flow: country pagination
+        if (callbackId.startsWith('br:ctypage:')) {
+            const page = parseInt(callbackId.substring('br:ctypage:'.length), 10);
+            if (!isNaN(page)) {
+                const newState = await BulletinFlow.showCountries(from, page);
+                setState(from, newState);
+            }
+            return;
+        }
+
+        // Browse flow: region pagination (non-France countries)
+        if (callbackId.startsWith('br:regpage:')) {
+            // Format: br:regpage:{country}:{page}
+            const rest = callbackId.substring('br:regpage:'.length);
+            const lastColon = rest.lastIndexOf(':');
+            const country = rest.substring(0, lastColon);
+            const page = parseInt(rest.substring(lastColon + 1), 10);
+            if (!isNaN(page) && country) {
+                const newState = await BulletinFlow.showRegions(from, country, page);
+                setState(from, newState);
+            }
+            return;
+        }
+
+        // Browse flow: mountain selection (France sub-flow)
         if (callbackId.startsWith('br:mtn:')) {
             const mountain = callbackId.substring('br:mtn:'.length);
             const newState = await BulletinFlow.showMassifs(from, mountain);

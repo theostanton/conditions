@@ -12,7 +12,7 @@ export namespace Subscriptions {
         return result.rows.length > 0;
     }
 
-    export async function isSubscribed(recipientId: string, massifCode: number, platform: Platform = 'telegram'):Promise<boolean>{
+    export async function isSubscribed(recipientId: string, massifCode: string, platform: Platform = 'telegram'):Promise<boolean>{
         const client = await getClient();
         const result = await client.query(
             "SELECT 1 FROM bra_subscriptions WHERE recipient = $1 AND massif = $2 AND platform = $3 LIMIT 1",
@@ -21,7 +21,7 @@ export namespace Subscriptions {
         return result.rows.length > 0;
     }
 
-    export async function getSubscriptionStatuses(recipientId: string, massifCodes: number[], platform: Platform = 'telegram'): Promise<Map<number, boolean>> {
+    export async function getSubscriptionStatuses(recipientId: string, massifCodes: string[], platform: Platform = 'telegram'): Promise<Map<string, boolean>> {
         if (massifCodes.length === 0) {
             return new Map();
         }
@@ -32,8 +32,8 @@ export namespace Subscriptions {
             [recipientId, massifCodes, platform]
         );
 
-        const subscribedMassifs = new Set(result.rows.map(row => row.get('massif') as number));
-        const statusMap = new Map<number, boolean>();
+        const subscribedMassifs = new Set(result.rows.map(row => row.get('massif') as string));
+        const statusMap = new Map<string, boolean>();
 
         for (const code of massifCodes) {
             statusMap.set(code, subscribedMassifs.has(code));
@@ -42,7 +42,7 @@ export namespace Subscriptions {
         return statusMap;
     }
 
-    export async function getSubscription(recipientId: string, massifCode: number, platform: Platform = 'telegram'): Promise<Subscription | null> {
+    export async function getSubscription(recipientId: string, massifCode: string, platform: Platform = 'telegram'): Promise<Subscription | null> {
         const client = await getClient();
         const result = await client.query(
             "SELECT * FROM bra_subscriptions WHERE recipient = $1 AND massif = $2 AND platform = $3 LIMIT 1",
@@ -56,7 +56,7 @@ export namespace Subscriptions {
         const row = result.rows[0];
         return {
             recipient: row.get('recipient') as string,
-            massif: row.get('massif') as number,
+            massif: row.get('massif') as string,
             platform: row.get('platform') as Platform,
             bulletin: row.get('bulletin') as boolean,
             snow_report: row.get('snow_report') as boolean,
@@ -68,13 +68,13 @@ export namespace Subscriptions {
         };
     }
 
-    export async function getAllForUser(recipientId: string, platform: Platform = 'telegram'): Promise<Array<{ massif: number }>> {
+    export async function getAllForUser(recipientId: string, platform: Platform = 'telegram'): Promise<Array<{ massif: string }>> {
         const client = await getClient();
         const result = await client.query(
             "SELECT massif FROM bra_subscriptions WHERE recipient = $1 AND platform = $2",
             [recipientId, platform],
         );
-        return result.rows.map(row => ({massif: row.get('massif') as number}));
+        return result.rows.map(row => ({massif: row.get('massif') as string}));
     }
 
     export async function subscribe(userId: string, massif: Massif, contentTypes?: Partial<ContentTypes>, platform: Platform = 'telegram'): Promise<void> {
@@ -107,7 +107,7 @@ export namespace Subscriptions {
         );
     }
 
-    export async function updateContentTypes(userId: string, massifCode: number, contentTypes: Partial<ContentTypes>, platform: Platform = 'telegram'): Promise<void> {
+    export async function updateContentTypes(userId: string, massifCode: string, contentTypes: Partial<ContentTypes>, platform: Platform = 'telegram'): Promise<void> {
         const client = await getClient();
         const updates: string[] = [];
         const values: any[] = [userId, massifCode, platform];

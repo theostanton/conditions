@@ -12,7 +12,7 @@ import {BotMessages} from "@bot/messages";
 export namespace CommandGet {
 
     // Store content type menus for cross-navigation
-    const contentTypeMenus = new Map<number, Menu>();
+    const contentTypeMenus = new Map<string, Menu>();
 
     function buildContentTypeMenu(massif: Massif): Menu {
         const contentTypeMenu = new Menu<Context>(`get-content-${massif.code}`);
@@ -136,7 +136,7 @@ export namespace CommandGet {
     }
 
     // Getter for cross-registration with subscriptions menu
-    export function getContentTypeMenu(massifCode: number): Menu | undefined {
+    export function getContentTypeMenu(massifCode: string): Menu | undefined {
         return contentTypeMenus.get(massifCode);
     }
 

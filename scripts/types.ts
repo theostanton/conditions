@@ -1,12 +1,14 @@
 export interface MassifRow {
   name: string
-  code: number
+  code: string
   departement?: string
   mountain?: string
   geometry?: object
+  provider?: string
+  country?: string
 }
 
 export interface BraSubscription {
-  massifCode: number
+  massifCode: string
   numbers: string[]
 }

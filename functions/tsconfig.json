@@ -23,7 +23,8 @@
       "@utils/*": ["utils/*"],
       "@analytics/*": ["analytics/*"],
       "@constants/*": ["constants/*"],
-      "@whatsapp/*": ["whatsapp/*"]
+      "@whatsapp/*": ["whatsapp/*"],
+      "@providers/*": ["providers/*"]
     }
   },
   "compileOnSave": true,

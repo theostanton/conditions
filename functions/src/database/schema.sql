@@ -1,34 +1,41 @@
 create table massifs
 (
     name        text not null,
-    code        integer primary key,
+    code        text primary key,
     departement text,
-    mountain    text
+    mountain    text,
+    geometry    jsonb,
+    provider    text not null default 'meteofrance',
+    country     text not null default 'France'
 );
 
 create table recipients
 (
-    number varchar(12) not null
-        unique,
-    created_at timestamp default NOW() not null
+    number     text not null,
+    platform   text not null default 'telegram',
+    created_at timestamp default NOW() not null,
+    UNIQUE (number, platform)
 );
 
 create table bra_subscriptions
 (
-    recipient   varchar(12) not null,
-    massif      integer,
-    bulletin    boolean default true,
-    snow_report boolean default false,
-    fresh_snow  boolean default false,
-    weather     boolean default false,
-    last_7_days boolean default false,
-    created_at  timestamp default NOW() not null,
-    UNIQUE (recipient, massif)
+    recipient        text not null,
+    massif           text,
+    platform         text not null default 'telegram',
+    bulletin         boolean default true,
+    snow_report      boolean default false,
+    fresh_snow       boolean default false,
+    weather          boolean default false,
+    last_7_days      boolean default false,
+    rose_pentes      boolean default false,
+    montagne_risques boolean default false,
+    created_at       timestamp default NOW() not null,
+    UNIQUE (recipient, massif, platform)
 );
 
 create table bras
 (
-    massif     integer   not null,
+    massif     text      not null,
     filename   text      not null,
     public_url text      not null,
     valid_to   timestamp not null,
@@ -45,16 +52,27 @@ alter table bras
 
 create table public.deliveries_bras
 (
-    recipient          varchar(12) not null,
-    massif             integer     not null,
-    delivery_timestamp timestamp   not null,
-    valid_from         timestamp   not null
+    recipient          text      not null,
+    massif             text      not null,
+    delivery_timestamp timestamp not null,
+    valid_from         timestamp not null,
+    platform           text not null default 'telegram'
 );
 
 alter table public.deliveries_bras
     owner to postgres;
 
 
+
+CREATE TABLE IF NOT EXISTS geocode_cache
+(
+    query             text primary key,
+    massif_code       text not null,
+    lat               double precision not null,
+    lng               double precision not null,
+    formatted_address text not null,
+    created_at        timestamp default NOW() not null
+);
 
 -- Index for fast delivery checks during notification generation
 CREATE INDEX IF NOT EXISTS idx_deliveries_bras_lookup ON deliveries_bras (massif, valid_from, recipient);

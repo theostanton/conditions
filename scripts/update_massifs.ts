@@ -15,7 +15,7 @@ interface Massif {
 
 interface MassifProperties {
   title: string
-  code: number
+  code: number | string
   Departement?: string
   mountain?: string
 }
@@ -39,11 +39,13 @@ async function fetchRegions(): Promise<MassifRow[]> {
   }
 
   const massifs = data.features.map<MassifRow>(feature => ({
-    code: feature.properties.code,
+    code: String(feature.properties.code),
     name: feature.properties.title,
     departement: feature.properties.Departement,
     mountain: feature.properties.mountain,
     geometry: feature.geometry,
+    provider: 'meteofrance',
+    country: 'France',
   }));
 
   const withoutGeometry = massifs.filter(m => !m.geometry);
@@ -64,11 +66,13 @@ async function insert(massifs: MassifRow[]): Promise<void> {
     massif.departement,
     massif.mountain,
     massif.geometry ? JSON.stringify(massif.geometry) : null,
+    massif.provider || 'meteofrance',
+    massif.country || 'France',
   ])
 
   try {
     await client.query(format(
-      'INSERT INTO massifs (code, name, departement, mountain, geometry) VALUES %L ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, departement = EXCLUDED.departement, mountain = EXCLUDED.mountain, geometry = EXCLUDED.geometry::jsonb',
+      'INSERT INTO massifs (code, name, departement, mountain, geometry, provider, country) VALUES %L ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, departement = EXCLUDED.departement, mountain = EXCLUDED.mountain, geometry = EXCLUDED.geometry::jsonb, provider = EXCLUDED.provider, country = EXCLUDED.country',
       values
     ))
   } catch (err) {

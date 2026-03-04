@@ -83,7 +83,7 @@ export namespace ImageService {
     /**
      * Build URL for a specific image type and massif
      */
-    function buildImageUrl(massifCode: number, imageType: ImageType): string {
+    function buildImageUrl(massifCode: string, imageType: ImageType): string {
         const config = CONTENT_TYPE_CONFIGS.find(c => c.key === imageType);
         if (!config || !config.endpoint) {
             throw new Error(`No endpoint configured for image type: ${imageType}`);
@@ -95,7 +95,7 @@ export namespace ImageService {
      * Fetch a single image, using the in-memory cache to avoid duplicate
      * Météo-France API calls within the same cron run.
      */
-    export function fetchImage(massifCode: number, imageType: ImageType, bulletin: Bulletin): Promise<FetchedImage> {
+    export function fetchImage(massifCode: string, imageType: ImageType, bulletin: Bulletin): Promise<FetchedImage> {
         const cacheKey = `${massifCode}:${imageType}`;
         const cached = imageCache.get(cacheKey);
         if (cached) return cached;
@@ -109,7 +109,7 @@ export namespace ImageService {
         return promise;
     }
 
-    async function fetchImageFromApi(massifCode: number, imageType: ImageType, bulletin: Bulletin): Promise<FetchedImage> {
+    async function fetchImageFromApi(massifCode: string, imageType: ImageType, bulletin: Bulletin): Promise<FetchedImage> {
         const url = buildImageUrl(massifCode, imageType);
 
         try {
@@ -143,7 +143,7 @@ export namespace ImageService {
     /**
      * Fetch all requested images based on content types
      */
-    export async function fetchImages(massifCode: number, contentTypes: Partial<ContentTypes>, bulletin: Bulletin): Promise<FetchedImage[]> {
+    export async function fetchImages(massifCode: string, contentTypes: Partial<ContentTypes>, bulletin: Bulletin): Promise<FetchedImage[]> {
         const imageTypes = getImageTypesFromContentTypes(contentTypes);
 
         // Fetch all images in parallel

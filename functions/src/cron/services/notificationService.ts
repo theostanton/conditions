@@ -15,7 +15,7 @@ export namespace NotificationService {
         const destinations: BulletinDestination[] = [];
 
         for (const subscription of subscriptions) {
-            const bulletin = bulletins.find(bulletin => bulletin.massif == subscription.massif);
+            const bulletin = bulletins.find(bulletin => bulletin.massif === subscription.massif);
             if (bulletin != undefined) {
                 const subscribers = subscription.recipients.split(",");
 
@@ -78,7 +78,7 @@ export namespace NotificationService {
         const batches = ArrayUtils.chunk(messages, BATCH_SIZE);
         let totalSent = 0;
         let totalFailed = 0;
-        const failedRecipients: Array<{recipient: string; massif: number; error: any}> = [];
+        const failedRecipients: Array<{recipient: string; massif: string; error: any}> = [];
         const recordingFailures: Array<{recipient: string; error: any}> = [];
 
         for (let i = 0; i < batches.length; i++) {
@@ -150,7 +150,7 @@ export namespace NotificationService {
     async function sendBulletinWithContent(message: {
         recipient: string,
         bulletin: Bulletin,
-        massif: number,
+        massif: string,
         subscription?: Subscription
     }): Promise<void> {
         const massif = MassifCache.findByCode(message.massif);

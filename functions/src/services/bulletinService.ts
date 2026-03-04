@@ -1,80 +1,46 @@
-import axios, {AxiosHeaders} from "axios";
-import {createWriteStream} from "fs";
-import {Readable} from "stream";
 import {Storage} from '@google-cloud/storage';
-import {PROJECT_ID, METEOFRANCE_TOKEN} from "@config/envs";
+import {PROJECT_ID} from "@config/envs";
 import {Bulletin, BulletinInfos} from "@app-types";
 import {Database} from "@database/queries";
 import {formatDateTime} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 import {MassifCache} from "@cache/MassifCache";
-
-const meteoFranceHeaders: AxiosHeaders = new AxiosHeaders();
-meteoFranceHeaders.set('Content-Type', 'application/xml');
-meteoFranceHeaders.set('apikey', METEOFRANCE_TOKEN);
+import {getProviderForRegion} from "@providers/registry";
 
 export namespace BulletinService {
 
     export type NewBulletinsResult = {
         bulletinInfosToUpdate: BulletinInfos[]
-        massifsNew: number[]
-        failedMassifs: number[]
-        massifsWithUpdate: number[]
-        massifsWithNoUpdate: number[]
+        massifsNew: string[]
+        failedMassifs: string[]
+        massifsWithUpdate: string[]
+        massifsWithNoUpdate: string[]
     }
 
-    export async function fetchBulletinMetadata(massifCode: number): Promise<{
+    export async function fetchBulletinMetadata(massifCode: string): Promise<{
         validFrom: Date,
         validTo: Date,
         riskLevel?: number
     } | undefined> {
-        try {
-            const response = await axios.get(
-                `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${massifCode}&format=xml`,
-                {headers: meteoFranceHeaders, timeout: 10000}
-            );
-
-            const matchFrom = response.data.match(/DATEBULLETIN="(.[0-9-T:]*)"/);
-            const matchUntil = response.data.match(/DATEVALIDITE="(.[0-9-T:]*)"/);
-
-            if (matchFrom == null || matchUntil == null) {
-                return undefined;
-            }
-
-            // Extract RISQUEMAXI from the XML
-            const matchRiskLevel = response.data.match(/RISQUEMAXI="(\d+)"/);
-            const riskLevel = matchRiskLevel ? parseInt(matchRiskLevel[1], 10) : undefined;
-
-            return {
-                validFrom: new Date(matchFrom[1]),
-                validTo: new Date(matchUntil[1]),
-                riskLevel
-            };
-        } catch (error) {
-            const massifName = MassifCache.findByCode(massifCode)?.name || `massif ${massifCode}`;
-            console.error(`Failed to fetch bulletin metadata for ${massifName}:`, error);
-
-            // Report to admin
-            await Analytics.sendError(
-                error as Error,
-                `bulletinService.fetchBulletinMetadata: ${massifName}`
-            ).catch(err => console.error('Failed to send error analytics:', err));
-
-            throw error;
+        const provider = getProviderForRegion(massifCode);
+        if (!provider) {
+            console.error(`No provider found for region ${massifCode}`);
+            return undefined;
         }
+        return provider.fetchBulletinMetadata(massifCode);
     }
 
-    export async function checkForNewBulletins(massifsWithSubscribers: number[]): Promise<NewBulletinsResult> {
+    export async function checkForNewBulletins(massifsWithSubscribers: string[]): Promise<NewBulletinsResult> {
         console.log(`massifsWithSubscribers=${JSON.stringify(massifsWithSubscribers)}`);
 
         const latestStoredBulletins = await Database.getLatestStoredBulletins();
         console.log(`latestStoredBulletins=${JSON.stringify(latestStoredBulletins)}`);
 
         const bulletinInfosToUpdate: BulletinInfos[] = [];
-        const massifsNew: number[] = []
-        const massifsWithUpdate: number[] = []
-        const massifsWithNoUpdate: number[] = []
-        const failedMassifs: number[] = []
+        const massifsNew: string[] = []
+        const massifsWithUpdate: string[] = []
+        const massifsWithNoUpdate: string[] = []
+        const failedMassifs: string[] = []
 
         // Fetch all bulletin metadata in parallel
         const results = await Promise.allSettled(
@@ -103,7 +69,7 @@ export namespace BulletinService {
                 failedMassifs.push(massif);
             } else {
                 const {validFrom, validTo, riskLevel} = metadata;
-                const storedBulletin = latestStoredBulletins.find(value => value.massif == massif);
+                const storedBulletin = latestStoredBulletins.find(value => value.massif === massif);
 
                 if (storedBulletin == undefined) {
                     console.log(`No existing bulletin for massif=${massif}`);
@@ -145,27 +111,13 @@ export namespace BulletinService {
         return {bulletinInfosToUpdate, massifsNew, failedMassifs, massifsWithUpdate, massifsWithNoUpdate}
     }
 
-    async function fetchBulletin(massif: number, filename: string): Promise<string | null> {
-        const resp = await fetch(
-            `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${massif}&format=pdf`,
-            {headers: meteoFranceHeaders}
-        );
-
-        if (resp.ok && resp.body) {
-            console.log("Writing to file:", filename);
-            let writer = createWriteStream(filename);
-            // @ts-ignore
-            Readable.fromWeb(resp.body).pipe(writer);
-            await new Promise<void>((resolve, reject) => {
-                writer.on('finish', () => resolve());
-                writer.on('error', reject);
-            });
-            console.log("Saved");
-            return filename;
-        } else {
-            console.log("Failed");
+    async function fetchBulletin(massif: string, filename: string): Promise<string | null> {
+        const provider = getProviderForRegion(massif);
+        if (!provider) {
+            console.error(`No provider found for region ${massif}`);
             return null;
         }
+        return provider.fetchBulletin(massif, filename);
     }
 
     async function storeBulletin(filename: string): Promise<string> {
@@ -202,21 +154,21 @@ export namespace BulletinService {
         // Process all bulletins in parallel
         const results = await Promise.allSettled(
             newBulletinsToFetch.map(async (bulletin) => {
-                const massifName = massifNames.find(value => value.code == bulletin.massif)?.name
+                const massifName = massifNames.find(value => value.code === bulletin.massif)?.name
                 if (!massifName) {
                     throw new Error(`Massif name not found for code ${bulletin.massif}`);
                 }
 
                 const filename = await generateFilename(bulletin, massifName);
 
-                // Fetch PDF
+                // Fetch PDF via provider
                 const fetchResult = await fetchBulletin(bulletin.massif, filename);
                 console.log(`fetchResult=${fetchResult}`);
                 if (fetchResult == null) {
                     throw new Error(`Failed to fetch bulletin for massif=${bulletin.massif}`);
                 }
 
-                // Store PDF
+                // Store PDF in GCS
                 const publicUrl = await storeBulletin(filename);
                 console.log(`Stored at publicUrl=${publicUrl}`);
 
@@ -230,9 +182,9 @@ export namespace BulletinService {
 
         // Collect successful bulletins and track failures
         const successfulBulletins: Bulletin[] = [];
-        const failedBulletins: Array<{ massif: number; error: any }> = [];
+        const failedBulletins: Array<{ massif: string; error: any }> = [];
         const dbInserts: Array<{
-            massif: number;
+            massif: string;
             filename: string;
             publicUrl: string;
             validFrom: Date;

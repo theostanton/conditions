@@ -1,10 +1,11 @@
 export type Bulletin = {
-    massif: number,
+    massif: string,
     filename: string,
     public_url: string,
     valid_from: Date,
     valid_to: Date,
     risk_level?: number,
+    summary_text?: string,
 }
 
 export type GeoJSONGeometry =
@@ -13,9 +14,11 @@ export type GeoJSONGeometry =
 
 export type Massif = {
     name: string,
-    code: number,
+    code: string,
     mountain?: string,
     geometry?: GeoJSONGeometry,
+    provider?: string,
+    country?: string,
 }
 
 export type BulletinInfos = Pick<Bulletin, "massif" | "valid_from" | "valid_to" | "risk_level">
@@ -24,7 +27,7 @@ export type Platform = 'telegram' | 'whatsapp';
 
 export type BulletinDestination = {
     recipients: string[],
-    massif: number,
+    massif: string,
     filename: string,
     public_url: string,
     valid_from: Date,
@@ -45,6 +48,6 @@ export type ContentTypes = {
 
 export type Subscription = {
     recipient: string,
-    massif: number,
+    massif: string,
     platform: Platform,
 } & ContentTypes

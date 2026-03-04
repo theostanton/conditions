@@ -19,6 +19,9 @@ export class EawsProvider implements BulletinProvider {
     private readonly baseUrl: string;
     private readonly lang: string;
 
+    // Cache bulletin IDs from metadata calls, used to construct PDF URLs
+    private bulletinIds = new Map<string, string>();
+
     constructor(id: string, baseUrl: string, lang: string) {
         this.id = id;
         this.baseUrl = baseUrl;
@@ -29,7 +32,11 @@ export class EawsProvider implements BulletinProvider {
         try {
             const url = `${this.baseUrl}/bulletins/latest/${regionCode}_${this.lang}_CAAMLv6.json`;
             const response = await axios.get<CAAMLv6Response>(url, {timeout: 15000});
-            return parseBulletinForRegion(response.data, regionCode);
+            const result = parseBulletinForRegion(response.data, regionCode);
+            if (result?.bulletinID) {
+                this.bulletinIds.set(regionCode, result.bulletinID);
+            }
+            return result;
         } catch (error) {
             const massifName = MassifCache.findByCode(regionCode)?.name || `region ${regionCode}`;
             console.error(`[${this.id}] Failed to fetch bulletin metadata for ${massifName}:`, error);
@@ -44,7 +51,19 @@ export class EawsProvider implements BulletinProvider {
     }
 
     async fetchBulletin(regionCode: string, filename: string): Promise<string | null> {
-        const url = `${this.baseUrl}/bulletins/latest/${regionCode}_${this.lang}.pdf`;
+        // PDF URL uses the bulletin UUID: {regionCode}_{bulletinID}.pdf
+        const bulletinId = this.bulletinIds.get(regionCode);
+        if (!bulletinId) {
+            console.error(`[${this.id}] No cached bulletin ID for ${regionCode}, fetching metadata first`);
+            const metadata = await this.fetchBulletinMetadata(regionCode);
+            if (!metadata) return null;
+        }
+        const bid = this.bulletinIds.get(regionCode);
+        if (!bid) {
+            console.error(`[${this.id}] Still no bulletin ID for ${regionCode}`);
+            return null;
+        }
+        const url = `${this.baseUrl}/bulletins/latest/${regionCode}_${bid}.pdf`;
         const resp = await fetch(url);
 
         if (resp.ok && resp.body) {

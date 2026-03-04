@@ -9,6 +9,7 @@ export interface CAAMLv6Response {
 }
 
 interface CAAMLv6Bulletin {
+    bulletinID?: string;
     publicationTime?: string;
     validTime?: {
         startTime?: string;
@@ -48,7 +49,9 @@ export function parseDangerRating(text: string): number | undefined {
  * We scan until we find one whose regions include our target code, then take
  * the **maximum** dangerRating mainValue as the overall risk level.
  */
-export function parseBulletinForRegion(json: CAAMLv6Response, regionCode: string): BulletinMetadata | undefined {
+export type CAAMLv6ParseResult = BulletinMetadata & { bulletinID?: string };
+
+export function parseBulletinForRegion(json: CAAMLv6Response, regionCode: string): CAAMLv6ParseResult | undefined {
     for (const bulletin of json.bulletins) {
         // Prefix match: our seeded codes (e.g. "AT-07", "CH-11") are prefixes
         // of micro-region IDs in the bulletin (e.g. "AT-07-14-01", "CH-1111")
@@ -74,7 +77,7 @@ export function parseBulletinForRegion(json: CAAMLv6Response, regionCode: string
             }
         }
 
-        return {validFrom, validTo, riskLevel};
+        return {validFrom, validTo, riskLevel, bulletinID: bulletin.bulletinID};
     }
 
     return undefined;

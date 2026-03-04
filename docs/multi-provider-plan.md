@@ -10,12 +10,20 @@ Key challenge: European providers deliver PDFs (like Météo-France), but US pro
 
 ## PR Structure (5 PRs)
 
-### PR 1: `refactor/multi-provider-support` — Foundation
+### PR 1: `refactor/multi-provider-support` — Foundation ✅ COMPLETE
 
 Schema migration, type changes, provider abstraction, Météo-France extraction. System behaves identically for existing French users. Continues using the existing `bulletin` WhatsApp template.
 
+> **Implementation notes** (25 files changed, +353/−178 lines):
+> - Migration requires **dropping FK constraints** before `INTEGER → TEXT` conversion, then re-adding them after — PostgreSQL cannot cast columns with active foreign key references.
+> - Callback regex pattern: `[\w\-/.]+` (includes dots for EAWS codes like `CH-GR.1` and slashes for NAC zones like `BTAC/teton`).
+> - `filename` nullability and `summary_text` column **deferred to PR 4** — not needed until summary-based providers exist.
+> - `schema.sql` fully synced with production (added `geocode_cache`, `platform`, `geometry`, etc.).
+> - Key files created: `providers/types.ts`, `providers/meteoFranceProvider.ts`, `providers/registry.ts`.
+
 **Schema migration** (`scripts/migrate_massif_codes_to_text.sql`):
 - Convert `massifs.code`, `bras.massif`, `bra_subscriptions.massif`, `deliveries_bras.massif`, `geocode_cache.massif_code` from `INTEGER` to `TEXT` (lossless `::text` cast)
+- Drop FK constraints on `bras.massif`, `bra_subscriptions.massif`, `deliveries_bras.massif`, `geocode_cache.massif_code` before conversion; re-add after
 - Add `provider TEXT NOT NULL DEFAULT 'meteofrance'` and `country TEXT NOT NULL DEFAULT 'France'` to `massifs`
 - Update `database/schema.sql` to match
 
@@ -23,6 +31,7 @@ Schema migration, type changes, provider abstraction, Météo-France extraction.
 - `Massif.code`: `number` → `string`, add `provider?: string`, `country?: string`
 - `Bulletin.massif`: `number` → `string`; make `filename` nullable (`string | null`); add `summary_text?: string`
 - All derived types (`BulletinInfos`, `BulletinDestination`, `Subscription`) cascade
+- ⏳ `filename` nullability and `summary_text` deferred to PR 4
 
 **Provider abstraction** — new `functions/src/providers/`:
 - `types.ts` — `BulletinProvider` interface with `deliveryMode: 'pdf' | 'summary'`, `fetchBulletinMetadata()`, `fetchBulletin()`, `getAvailableContentTypes()`
@@ -37,7 +46,7 @@ Schema migration, type changes, provider abstraction, Météo-France extraction.
 - `database/queries.ts`, all `database/models/*.ts`
 - `services/imageService.ts` — add provider guard (skip images for non-Météo-France)
 - `cache/MassifCache.ts` — `findByCode(code: string)`, add `getCountries()`, `getByCountry()`
-- `bot/callbacks/subscriptionCallbacks.ts` — change regex from `\d+` to `[\w-]+`, remove all `parseInt()` for massif codes
+- `bot/callbacks/subscriptionCallbacks.ts` — change regex from `\d+` to `[\w\-/.]+`, remove all `parseInt()` for massif codes
 - `whatsapp/router.ts` — remove `parseInt()` from `br:mas:` and `unsub:` callbacks
 - `whatsapp/flows/bulletin.ts`, `whatsapp/flows/delivery.ts`
 - `bot/commands/get.ts`, `bot/commands/subscriptions.ts`, `bot/actions/*`
@@ -125,7 +134,7 @@ Add the National Avalanche Center as a **summary-based** provider — no PDFs, s
 ## Dependency Graph
 
 ```
-PR 1 (foundation)
+PR 1 (foundation) ✅
   ↓
   ├──→ PR 2 (templates) ──→ PR 4 (US NAC) ──┐
   │                                           ├──→ PR 5 (polish)
@@ -207,7 +216,7 @@ Two new templates replace the existing `bulletin` template. Both use named varia
 
 ## Verification (per PR)
 
-1. **PR 1**: System behaves identically. French massifs load as `'15'` not `15`. All flows work. Old `bulletin` template still used.
+1. **PR 1** ✅: Cron tested end-to-end — bulletins fetched, stored, and delivered. Massif codes stored as strings (`'15'` not `15`). 35 massifs / 4 mountains / 1 country cached. All Telegram and WhatsApp flows work. Old `bulletin` template still used.
 2. **PR 2**: Cron delivers French bulletins using new `bulletin_pdf` template. Verify formatting matches mockup.
 3. **PR 3**: Subscribe to AT-07 → receive Euregio PDF via cron. Browse shows countries. French users unaffected.
 4. **PR 4**: Search "Jackson Hole" → get forecast summary with link. Cron delivers text summaries using `bulletin_summary` template.

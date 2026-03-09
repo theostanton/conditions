@@ -1,3 +1,17 @@
+terraform {
+  required_providers {
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.0"
+    }
+  }
+
+  backend "gcs" {
+    bucket = "conditions-450312-tfstate"
+    prefix = "terraform/state"
+  }
+}
+
 locals {
   project_id = "conditions-450312"
   region     = "europe-west1"

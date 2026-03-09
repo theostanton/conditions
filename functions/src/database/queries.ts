@@ -102,6 +102,7 @@ export namespace Database {
             validFrom: Date;
             validTo: Date;
             riskLevel?: number;
+            metadata?: Record<string, any>;
         }>
     ): Promise<void> {
         if (bulletins.length === 0) {
@@ -114,13 +115,13 @@ export namespace Database {
             const placeholders: string[] = [];
 
             bulletins.forEach((b, i) => {
-                const base = i * 6;
-                placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`);
-                values.push(b.massif, b.filename, b.publicUrl, b.validFrom, b.validTo, b.riskLevel);
+                const base = i * 7;
+                placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7})`);
+                values.push(b.massif, b.filename, b.publicUrl, b.validFrom, b.validTo, b.riskLevel, b.metadata ? JSON.stringify(b.metadata) : null);
             });
 
             await client.query(
-                `insert into bras (massif, filename, public_url, valid_from, valid_to, risk_level)
+                `insert into bras (massif, filename, public_url, valid_from, valid_to, risk_level, metadata_json)
                 values
                 ${placeholders.join(', ')}`,
                 values
@@ -192,23 +193,32 @@ export namespace Database {
         valid_from: Date;
         valid_to: Date;
         risk_level?: number;
+        metadata?: Record<string, any>;
     }>> {
         try {
             const client = await getClient();
             const result = await client.query(
-                `SELECT DISTINCT ON (massif) massif, filename, public_url, valid_from, valid_to, risk_level
+                `SELECT DISTINCT ON (massif) massif, filename, public_url, valid_from, valid_to, risk_level, metadata_json
                  FROM bras
                  WHERE valid_to > NOW()
                  ORDER BY massif, valid_to DESC, valid_from DESC`
             );
-            return result.rows.map(row => ({
-                massif: row.get('massif') as string,
-                filename: row.get('filename') as string,
-                public_url: row.get('public_url') as string,
-                valid_from: row.get('valid_from') as Date,
-                valid_to: row.get('valid_to') as Date,
-                risk_level: row.get('risk_level') as number | undefined,
-            }));
+            return result.rows.map(row => {
+                const metadataRaw = row.get('metadata_json');
+                let metadata: Record<string, any> | undefined;
+                if (metadataRaw) {
+                    metadata = typeof metadataRaw === 'string' ? JSON.parse(metadataRaw) : metadataRaw;
+                }
+                return {
+                    massif: row.get('massif') as string,
+                    filename: row.get('filename') as string,
+                    public_url: row.get('public_url') as string,
+                    valid_from: row.get('valid_from') as Date,
+                    valid_to: row.get('valid_to') as Date,
+                    risk_level: row.get('risk_level') as number | undefined,
+                    metadata,
+                };
+            });
         } catch (error) {
             console.error('Database error in getValidBulletins:', error);
             await Analytics.sendError(

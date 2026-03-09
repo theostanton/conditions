@@ -3,6 +3,7 @@ import {lookup} from "dns/promises";
 import {setupDatabase} from "@config/database";
 import {MassifCache} from "@cache/MassifCache";
 import {WA_VERIFY_TOKEN} from "@config/whatsapp";
+import {formatError} from "@utils/formatters";
 import {WhatsAppRouter} from "@whatsapp/router";
 import type {WAWebhookPayload} from "@whatsapp/types";
 
@@ -47,6 +48,6 @@ export async function whatsappWebhook(req: Request, res: Response) {
         const payload = req.body as WAWebhookPayload;
         await WhatsAppRouter.handleWebhook(payload);
     } catch (error) {
-        console.error('Error handling WhatsApp webhook:', error);
+        console.error(`Error handling WhatsApp webhook: ${formatError(error)}`);
     }
 }

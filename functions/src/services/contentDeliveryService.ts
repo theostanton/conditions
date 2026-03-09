@@ -2,6 +2,7 @@ import {Bot, Context, InputFile, InlineKeyboard} from "grammy";
 import {Bulletin, ContentTypes, Massif} from "@app-types";
 import {ImageService} from "@services/imageService";
 import {InputMediaBuilder} from "grammy";
+import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 
 export namespace ContentDeliveryService {
@@ -64,7 +65,7 @@ export namespace ContentDeliveryService {
                     await bot.api.sendDocument(recipient, bulletin.public_url, replyMarkup);
                 }
             } catch (error) {
-                console.error(`Failed to send bulletin PDF for ${massif.name}:`, error);
+                console.error(`Failed to send bulletin PDF for ${massif.name}: ${formatError(error)}`);
                 await Analytics.sendError(
                     error as Error,
                     `contentDeliveryService: Failed to send bulletin PDF for ${massif.name}`
@@ -78,7 +79,7 @@ export namespace ContentDeliveryService {
         try {
             fetchedImages = await ImageService.fetchImages(massif.code, contentTypes, bulletin);
         } catch (error) {
-            console.error(`Failed to fetch images for ${massif.name}:`, error);
+            console.error(`Failed to fetch images for ${massif.name}: ${formatError(error)}`);
             await Analytics.sendError(
                 error as Error,
                 `contentDeliveryService: Failed to fetch images for ${massif.name}`
@@ -118,7 +119,7 @@ export namespace ContentDeliveryService {
                     }
                 }
             } catch (error) {
-                console.error(`Failed to send media group for ${massif.name}:`, error);
+                console.error(`Failed to send media group for ${massif.name}: ${formatError(error)}`);
                 await Analytics.sendError(
                     error as Error,
                     `contentDeliveryService: Failed to send media group for ${massif.name}`

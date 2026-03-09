@@ -1,5 +1,6 @@
 import {Request, Response} from '@google-cloud/functions-framework';
 import {setupDatabase} from "@config/database";
+import {formatError} from "@utils/formatters";
 import {MassifCache} from "@cache/MassifCache";
 import {Bulletins} from "@database/models/Bulletins";
 import {BulletinService} from "@services/bulletinService";
@@ -51,7 +52,7 @@ export async function reportPageEndpoint(req: Request, res: Response) {
                     if (fetched.length > 0) bulletin = fetched[0];
                 }
             } catch (error) {
-                console.error(`Failed to fetch bulletin for ${massif.name}:`, error);
+                console.error(`Failed to fetch bulletin for ${massif.name}: ${formatError(error)}`);
             }
         }
 
@@ -106,7 +107,7 @@ export async function reportPageEndpoint(req: Request, res: Response) {
         res.set('Content-Type', 'text/html; charset=utf-8');
         res.status(200).send(renderLoadingPage(massif));
     } catch (error) {
-        console.error('Error in reportPageEndpoint:', error);
+        console.error(`Error in reportPageEndpoint: ${formatError(error)}`);
         res.status(500).send('Internal error');
     }
 }

@@ -1,7 +1,28 @@
-import { AxiosHeaders } from "axios";
 import { config } from "dotenv";
 
 config();
+
+const REQUIRED_VARS = [
+    'GOOGLE_PROJECT_ID',
+    'TELEGRAM_BOT_TOKEN',
+    'ANALYTICS_BOT_TOKEN',
+    'METEOFRANCE_TOKEN',
+    'ADMIN_CHAT_ID',
+    'PGHOST',
+    'PGDATABASE',
+    'PGUSER',
+    'PGPASSWORD',
+    'WA_PHONE_NUMBER_ID',
+    'WA_ACCESS_TOKEN',
+    'WA_VERIFY_TOKEN',
+    'GOOGLE_MAPS_API_KEY',
+    'ANTHROPIC_API_KEY',
+] as const;
+
+const missing = REQUIRED_VARS.filter(k => !process.env[k]);
+if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+}
 
 export const PROJECT_ID = process.env.GOOGLE_PROJECT_ID as string;
 export const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN as string;

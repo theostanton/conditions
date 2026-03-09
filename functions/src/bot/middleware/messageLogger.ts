@@ -1,5 +1,6 @@
 import {Bot, Context} from "grammy";
 import {MessageLogs} from "@database/models/MessageLogs";
+import {formatError} from "@utils/formatters";
 
 /**
  * Middleware to log all messages sent by the bot (outgoing)
@@ -41,7 +42,7 @@ function setupOutgoingMessageLogging(bot: Bot) {
                 console.log(`Logged outgoing ${method} to ${recipient}`);
             }
         } catch (error) {
-            console.error('Failed to log outgoing message:', error);
+            console.error(`Failed to log outgoing message: ${formatError(error)}`);
             // Don't throw - we don't want to break the bot if logging fails
         }
 
@@ -84,7 +85,7 @@ function setupIncomingMessageLogging(bot: Bot) {
                 }
             }
         } catch (error) {
-            console.error('Failed to log incoming message:', error);
+            console.error(`Failed to log incoming message: ${formatError(error)}`);
             // Don't throw - we don't want to break the bot if logging fails
         }
 

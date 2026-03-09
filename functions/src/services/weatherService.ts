@@ -4,6 +4,7 @@ import {getCentroid, hasUsableGeometry} from "@utils/geo";
 import {AsyncUtils} from "@utils/async";
 import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
+import {createPromiseCache} from "@utils/cache";
 
 export type WeatherData = {
     hourly: HourlyWeather[];
@@ -37,8 +38,7 @@ const ELEVATIONS = [1500, 2000, 2500, 3000];
 
 const OPEN_METEO_BASE = "https://api.open-meteo.com/v1/forecast";
 
-// In-memory cache per cron run, same pattern as ImageService.imageCache
-const weatherCache = new Map<string, Promise<WeatherResult>>();
+const weatherCache = createPromiseCache<WeatherResult>();
 
 export namespace WeatherService {
 
@@ -47,15 +47,7 @@ export namespace WeatherService {
     }
 
     export async function fetchWeatherForMassif(massifCode: string): Promise<WeatherResult> {
-        const cached = weatherCache.get(massifCode);
-        if (cached) return cached;
-
-        const promise = fetchFromApi(massifCode);
-        weatherCache.set(massifCode, promise);
-
-        promise.catch(() => weatherCache.delete(massifCode));
-
-        return promise;
+        return weatherCache.getOrCreate(massifCode, () => fetchFromApi(massifCode));
     }
 
     async function fetchFromApi(massifCode: string): Promise<WeatherResult> {

@@ -2,6 +2,7 @@ import {Context} from "grammy";
 import {MenuFlavor} from "@grammyjs/menu";
 import {Subscriptions} from "@database/models/Subscriptions";
 import {Massif, ContentTypes} from "@app-types";
+import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 import {Bulletins} from "@database/models/Bulletins";
 import {BulletinService} from "@services/bulletinService";
@@ -45,7 +46,7 @@ async function sendWelcomeContent(context: Context, massif: Massif, contentTypes
         try {
             await Deliveries.recordDelivery(context.from.id.toString(), bulletin);
         } catch (error) {
-            console.error(`Failed to record welcome delivery for ${context.from.id}:`, error);
+            console.error(`Failed to record welcome delivery for ${context.from.id}: ${formatError(error)}`);
             // Don't throw - delivery was successful, just recording failed
         }
     }
@@ -106,16 +107,16 @@ export namespace ActionSubscriptions {
                 }
 
                 await context.editMessageText(BotMessages.menuHeaders.yourSubscriptions(mountain), {parse_mode: BotMessages.parseMode}).catch(err =>
-                    console.error('Error updating message text:', err)
+                    console.error(`Error updating message text: ${formatError(err)}`)
                 );
                 await context.menu.back({immediate: true}).catch(err =>
-                    console.error('Error navigating back:', err)
+                    console.error(`Error navigating back: ${formatError(err)}`)
                 );
             }
 
             // Send bulletin and images based on selected content types (asynchronously)
             sendWelcomeContent(context, massif, contentTypes).catch(err =>
-                console.error('Error sending welcome content:', err)
+                console.error(`Error sending welcome content: ${formatError(err)}`)
             );
 
             // Analytics - non-blocking
@@ -124,7 +125,7 @@ export namespace ActionSubscriptions {
             );
 
         } catch (error) {
-            console.error('Error saving content types:', error);
+            console.error(`Error saving content types: ${formatError(error)}`);
 
             if (context.callbackQuery) {
                 await context.answerCallbackQuery({
@@ -155,7 +156,7 @@ export namespace ActionSubscriptions {
             // Update menu immediately to reflect the change
             if (context.callbackQuery?.message) {
                 await context.menu.update({immediate: true}).catch(err =>
-                    console.error('Error updating menu:', err)
+                    console.error(`Error updating menu: ${formatError(err)}`)
                 );
             }
 
@@ -165,7 +166,7 @@ export namespace ActionSubscriptions {
             );
 
         } catch (error) {
-            console.error('Error unsubscribing:', error);
+            console.error(`Error unsubscribing: ${formatError(error)}`);
 
             if (context.callbackQuery) {
                 await context.answerCallbackQuery({

@@ -4,6 +4,7 @@ import {Deliveries} from "@database/models/Deliveries";
 import {Bulletin, ContentTypes, Massif} from "@app-types";
 import {BulletinService} from "@services/bulletinService";
 import {ContentDeliveryService} from "@services/contentDeliveryService";
+import {formatError} from "@utils/formatters";
 import {BotMessages} from "@bot/messages";
 
 export namespace ActionBulletins {
@@ -33,7 +34,7 @@ export namespace ActionBulletins {
 
             return bulletins[0];
         } catch (error) {
-            console.error('Error fetching bulletin:', error);
+            console.error(`Error fetching bulletin: ${formatError(error)}`);
             await context.reply(BotMessages.errors.fetchBulletinRetry(massif.name));
             return undefined;
         }
@@ -79,7 +80,7 @@ export namespace ActionBulletins {
             await deliverBulletin(context, massif, bulletin, recipient, contentTypes);
 
         } catch (error) {
-            console.error('Error sending bulletin:', error);
+            console.error(`Error sending bulletin: ${formatError(error)}`);
             await context.reply(BotMessages.errors.retrieveBulletinRetry(massif.name));
         }
     }

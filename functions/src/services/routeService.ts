@@ -3,6 +3,7 @@ import {MassifCache} from "@cache/MassifCache";
 import {hasUsableGeometry} from "@utils/geo";
 import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
+import {createPromiseCache} from "@utils/cache";
 import type {GeoJSONGeometry} from "@app-types";
 
 const C2C_API_BASE = "https://api.camptocamp.org";
@@ -17,8 +18,7 @@ export type RouteInfo = {
     url: string;
 };
 
-// In-memory cache per cron run
-const routeCache = new Map<string, Promise<RouteInfo[]>>();
+const routeCache = createPromiseCache<RouteInfo[]>();
 
 export namespace RouteService {
 
@@ -27,15 +27,7 @@ export namespace RouteService {
     }
 
     export async function fetchRoutesForMassif(massifCode: string): Promise<RouteInfo[]> {
-        const cached = routeCache.get(massifCode);
-        if (cached) return cached;
-
-        const promise = fetchFromApi(massifCode);
-        routeCache.set(massifCode, promise);
-
-        promise.catch(() => routeCache.delete(massifCode));
-
-        return promise;
+        return routeCache.getOrCreate(massifCode, () => fetchFromApi(massifCode));
     }
 
     async function fetchFromApi(massifCode: string): Promise<RouteInfo[]> {

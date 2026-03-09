@@ -1,9 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {ANTHROPIC_API_KEY} from "@config/envs";
 import {MassifCache} from "@cache/MassifCache";
+import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 import type {WeatherResult} from "@services/weatherService";
 import type {RouteInfo} from "@services/routeService";
+import type {BulletinMetadata} from "@app-types";
 
 export type WhatsAppReportFields = {
     risk: string;
@@ -22,7 +24,7 @@ type ReportInput = {
     massifName: string;
     riskLevel?: number;
     validFrom: Date;
-    metadata?: Record<string, any>;
+    metadata?: BulletinMetadata;
     weather: WeatherResult;
     routes: RouteInfo[];
 };
@@ -108,7 +110,7 @@ export namespace ReportService {
 
             return {fullReport: truncatedFull, whatsapp};
         } catch (error) {
-            console.error(`Failed to generate report for ${input.massifName}:`, error);
+            console.error(`Failed to generate report for ${input.massifName}: ${formatError(error)}`);
 
             await Analytics.sendError(
                 error as Error,

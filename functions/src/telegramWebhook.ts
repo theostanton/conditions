@@ -2,6 +2,7 @@ import {Request, Response} from '@google-cloud/functions-framework';
 import {setupDatabase} from "@config/database";
 import {createBot} from "@bot/index";
 import {webhookCallback} from "grammy";
+import {formatError} from "@utils/formatters";
 
 // Initialize DB + bot eagerly at instance boot (not on first request)
 const ready = (async () => {
@@ -17,7 +18,7 @@ export async function telegramWebhook(req: Request, res: Response) {
         const handler = await ready;
         await handler(req as any, res as any);
     } catch (error) {
-        console.error('Error handling webhook:', error);
+        console.error(`Error handling webhook: ${formatError(error)}`);
         res.status(500).send('Internal Server Error');
     }
 }

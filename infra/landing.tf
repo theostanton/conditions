@@ -38,7 +38,9 @@ resource "cloudflare_record" "www" {
 resource "cloudflare_worker_script" "landing_page" {
   account_id = var.cloudflare_account_id
   name       = "conditionsreport-landing"
-  content    = file("${path.module}/../landing/landing-page.js")
+  content = templatefile("${path.module}/../landing/landing-page.js", {
+    report_function_url = google_cloudfunctions2_function.report.service_config[0].uri
+  })
 }
 
 # Route Worker to primary domain

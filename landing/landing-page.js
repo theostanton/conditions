@@ -10,6 +10,8 @@
 
 const GCS_BASE = 'https://storage.googleapis.com/conditions-450312-bras/landing';
 const CACHE_KEY_BASE = 'https://conditionsreport.com/__landing';
+// Injected by Terraform templatefile() — do NOT use ${} syntax elsewhere in this file
+const REPORT_FUNCTION_URL = '${report_function_url}';
 
 async function handleRequest(request) {
   const url = new URL(request.url);
@@ -22,6 +24,39 @@ async function handleRequest(request) {
   // Redirect www to root domain
   if (url.hostname === 'www.conditionsreport.com') {
     return Response.redirect('https://conditionsreport.com/', 301);
+  }
+
+  // Check for slug-like paths (no extension, single segment) → proxy to report function
+  const segment = url.pathname.replace(/^\/|\/$/g, '');
+  if (segment && !segment.includes('/') && !segment.includes('.')) {
+    const cache = caches.default;
+    const reportCacheKey = new Request(CACHE_KEY_BASE + '/__report/' + segment);
+
+    // Check cache first
+    const cachedReport = await cache.match(reportCacheKey);
+    if (cachedReport) return cachedReport;
+
+    try {
+      // redirect: 'manual' prevents the Worker from following 302s back into the same zone
+      const reportResp = await fetch(REPORT_FUNCTION_URL + '/' + segment, { redirect: 'manual' });
+
+      // Pass redirects (unknown slugs) through to the client
+      if (reportResp.status >= 300 && reportResp.status < 400) {
+        return Response.redirect('https://conditionsreport.com/', 302);
+      }
+
+      const response = new Response(reportResp.body, reportResp);
+
+      // Only cache successful report pages (not loading pages)
+      const cacheControl = response.headers.get('Cache-Control') || '';
+      if (reportResp.ok && cacheControl.includes('max-age')) {
+        await cache.put(reportCacheKey, response.clone());
+      }
+
+      return response;
+    } catch (error) {
+      // Fall through to GCS on error
+    }
   }
 
   // Map request path to GCS object

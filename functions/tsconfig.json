@@ -24,7 +24,8 @@
       "@analytics/*": ["analytics/*"],
       "@constants/*": ["constants/*"],
       "@whatsapp/*": ["whatsapp/*"],
-      "@providers/*": ["providers/*"]
+      "@providers/*": ["providers/*"],
+      "@web/*": ["web/*"]
     }
   },
   "compileOnSave": true,

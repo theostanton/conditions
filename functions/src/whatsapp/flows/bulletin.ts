@@ -3,6 +3,10 @@ import {Bulletins} from "@database/models/Bulletins";
 import {Deliveries} from "@database/models/Deliveries";
 import {Subscriptions} from "@database/models/Subscriptions";
 import {BulletinService} from "@services/bulletinService";
+import {ReportCacheService} from "@services/reportCacheService";
+import {ReportService} from "@services/reportService";
+import {WeatherService} from "@services/weatherService";
+import {RouteService} from "@services/routeService";
 import {WhatsAppClient} from "@whatsapp/client";
 import type {Bulletin, Massif} from "@app-types";
 import {Messages} from "@whatsapp/messages";
@@ -125,6 +129,9 @@ export namespace BulletinFlow {
         if (!isSubscribed) {
             await Subscriptions.subscribe(to, massif, undefined, 'whatsapp');
             Analytics.send(`WhatsApp ${to} auto-subscribed to ${massif.name}`).catch(console.error);
+
+            // Fire-and-forget: generate and send conditions report for new subscribers
+            generateAndSendReport(to, bulletin, massif).catch(console.error);
         }
     }
 
@@ -176,6 +183,36 @@ export namespace BulletinFlow {
         );
 
         Analytics.send(`WhatsApp ${to} unsubscribed from ${massif.name}`).catch(console.error);
+    }
+}
+
+async function generateAndSendReport(to: string, bulletin: Bulletin, massif: Massif): Promise<void> {
+    try {
+        let report = await ReportCacheService.getCachedReport(massif.code, bulletin.valid_from);
+
+        if (!report) {
+            const [weather, routes] = await Promise.all([
+                WeatherService.fetchWeatherForMassif(massif.code),
+                RouteService.fetchRoutesForMassif(massif.code),
+            ]);
+
+            report = await ReportService.generateReport({
+                massifCode: massif.code,
+                massifName: massif.name,
+                riskLevel: bulletin.risk_level,
+                validFrom: bulletin.valid_from,
+                metadata: bulletin.metadata,
+                weather,
+                routes,
+            });
+
+            await ReportCacheService.saveToDb(massif.code, bulletin.valid_from, report);
+            ReportCacheService.setInMemory(massif.code, bulletin.valid_from, report);
+        }
+
+        await WhatsAppClient.sendText(to, report.fullReport);
+    } catch (error) {
+        console.error(`Failed to generate/send report for ${massif.name} to ${to}:`, error);
     }
 }
 

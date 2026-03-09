@@ -77,3 +77,9 @@ variable "google_maps_api_key" {
   type        = string
   sensitive   = true
 }
+
+variable "anthropic_api_key" {
+  description = "Anthropic API key for Claude conditions report generation"
+  type        = string
+  sensitive   = true
+}

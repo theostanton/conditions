@@ -7,6 +7,7 @@ import {AsyncUtils} from "@utils/async";
 import {ContentDeliveryService} from "@services/contentDeliveryService";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
+import {CONDITIONS_REPORT_ENABLED} from "@constants/contentTypes";
 import type {ConditionsReport} from "@services/reportService";
 
 export namespace NotificationService {
@@ -164,13 +165,11 @@ export namespace NotificationService {
         // Use subscription content types or default to bulletin only
         const contentTypes = message.subscription || { bulletin: true };
 
-        // Send conditions report BEFORE bulletin if subscriber opted in
-        if (message.report && (message.subscription as any)?.conditions_report) {
+        if (CONDITIONS_REPORT_ENABLED && message.report && (message.subscription as any)?.conditions_report) {
             try {
                 await bot.api.sendMessage(message.recipient, message.report.fullReport);
             } catch (error) {
                 console.error(`Failed to send report to ${message.recipient}:`, error);
-                // Don't fail the whole delivery — fall through to bulletin
             }
         }
 

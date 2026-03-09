@@ -6,6 +6,7 @@ import {AsyncUtils} from "@utils/async";
 import {WhatsAppDelivery, sendReportTemplate} from "@whatsapp/flows/delivery";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
+import {CONDITIONS_REPORT_ENABLED} from "@constants/contentTypes";
 import type {ConditionsReport} from "@services/reportService";
 
 export namespace WhatsappNotificationService {
@@ -151,29 +152,24 @@ export namespace WhatsappNotificationService {
 
         const contentTypes = message.subscription || {bulletin: true};
 
-        // If subscriber opted in to conditions_report, send via report template
-        // (combines report text + PDF in a single template message)
-        if (message.report && (message.subscription as any)?.conditions_report) {
+        if (CONDITIONS_REPORT_ENABLED && message.report && (message.subscription as any)?.conditions_report) {
             try {
                 await sendReportTemplate(
                     message.recipient,
                     message.bulletin,
-                    massif,
+                    massif!,
                     message.report.whatsapp,
                 );
-                // Report template includes the PDF, so skip sending bulletin again
-                // but still send additional images if subscribed
                 const imagesOnly = {...contentTypes, bulletin: false};
                 await WhatsAppDelivery.sendBulletinWithContent(
                     message.recipient,
                     message.bulletin,
-                    massif,
+                    massif!,
                     imagesOnly,
                 );
                 return;
             } catch (error) {
                 console.error(`[WhatsApp] Failed to send report template to ${message.recipient}:`, error);
-                // Fall through to regular bulletin delivery
             }
         }
 

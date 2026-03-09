@@ -1,6 +1,7 @@
 import type {Massif} from "@app-types";
 import {Massifs} from "@database/models/Massifs";
 import {pointInGeometry} from "@utils/geo";
+import {toSlug} from "@utils/slug";
 
 export namespace MassifCache {
 
@@ -9,6 +10,7 @@ export namespace MassifCache {
     let massifsByMountain: Map<string, Massif[]> = new Map();
     let countriesCache: string[] = [];
     let massifsByCountry: Map<string, Massif[]> = new Map();
+    let slugIndex: Map<string, Massif> = new Map();
 
     export async function initialize(): Promise<void> {
         console.log('Initializing massif cache...');
@@ -43,6 +45,11 @@ export namespace MassifCache {
             massifsByCountry.set(country, massifsForCountry);
         }
 
+        // Build slug index
+        for (const massif of allMassifs) {
+            slugIndex.set(toSlug(massif.name), massif);
+        }
+
         console.log(`Cached ${allMassifs.length} massifs across ${mountainsCache.length} mountains, ${countriesCache.length} countries`);
     }
 
@@ -72,6 +79,14 @@ export namespace MassifCache {
 
     export function findByName(name: string): Massif | undefined {
         return allMassifs.find(m => m.name === name);
+    }
+
+    export function findBySlug(slug: string): Massif | undefined {
+        return slugIndex.get(slug);
+    }
+
+    export function getSlug(massif: Massif): string {
+        return toSlug(massif.name);
     }
 
     export function findByLocation(lat: number, lng: number): Massif | undefined {

@@ -2,3 +2,4 @@
 export {telegramWebhook} from './telegramWebhook';
 export {cronEndpoint} from './cronEndpoint';
 export {whatsappWebhook} from './whatsappWebhook';
+export {reportPageEndpoint} from './web/reportEndpoint';

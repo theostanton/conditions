@@ -65,6 +65,7 @@ export namespace Subscriptions {
             last_7_days: row.get('last_7_days') as boolean,
             rose_pentes: row.get('rose_pentes') as boolean,
             montagne_risques: row.get('montagne_risques') as boolean,
+            conditions_report: row.get('conditions_report') as boolean,
         };
     }
 
@@ -90,11 +91,12 @@ export namespace Subscriptions {
             last_7_days: contentTypes?.last_7_days ?? false,
             rose_pentes: contentTypes?.rose_pentes ?? false,
             montagne_risques: contentTypes?.montagne_risques ?? false,
+            conditions_report: contentTypes?.conditions_report ?? false,
         };
 
         await client.query(
-            `INSERT INTO bra_subscriptions (recipient, massif, platform, bulletin, snow_report, fresh_snow, weather, last_7_days, rose_pentes, montagne_risques)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            `INSERT INTO bra_subscriptions (recipient, massif, platform, bulletin, snow_report, fresh_snow, weather, last_7_days, rose_pentes, montagne_risques, conditions_report)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
              ON CONFLICT (recipient, massif, platform) DO UPDATE SET
                 bulletin = $4,
                 snow_report = $5,
@@ -102,8 +104,9 @@ export namespace Subscriptions {
                 weather = $7,
                 last_7_days = $8,
                 rose_pentes = $9,
-                montagne_risques = $10`,
-            [userId, massif.code, platform, types.bulletin, types.snow_report, types.fresh_snow, types.weather, types.last_7_days, types.rose_pentes, types.montagne_risques]
+                montagne_risques = $10,
+                conditions_report = $11`,
+            [userId, massif.code, platform, types.bulletin, types.snow_report, types.fresh_snow, types.weather, types.last_7_days, types.rose_pentes, types.montagne_risques, types.conditions_report]
         );
     }
 
@@ -140,6 +143,10 @@ export namespace Subscriptions {
         if (contentTypes.montagne_risques !== undefined) {
             updates.push(`montagne_risques = $${paramIndex++}`);
             values.push(contentTypes.montagne_risques);
+        }
+        if (contentTypes.conditions_report !== undefined) {
+            updates.push(`conditions_report = $${paramIndex++}`);
+            values.push(contentTypes.conditions_report);
         }
 
         if (updates.length === 0) {

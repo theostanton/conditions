@@ -44,6 +44,7 @@ export type ContentTypes = {
     last_7_days: boolean,
     rose_pentes: boolean,
     montagne_risques: boolean,
+    conditions_report: boolean,
 }
 
 export type Subscription = {

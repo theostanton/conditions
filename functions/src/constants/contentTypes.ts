@@ -55,6 +55,12 @@ export const CONTENT_TYPE_CONFIGS: ContentTypeConfig[] = [
         label: 'Mountain Risks',
         emoji: '⚠️',
         endpoint: 'montagne-risques'
+    },
+    {
+        key: 'conditions_report',
+        label: 'Conditions Report',
+        emoji: '🏔',
+        endpoint: '' // Not an image endpoint — AI-generated text report
     }
 ];
 

@@ -130,8 +130,8 @@ export namespace BulletinFlow {
             await Subscriptions.subscribe(to, massif, undefined, 'whatsapp');
             Analytics.send(`WhatsApp ${to} auto-subscribed to ${massif.name}`).catch(console.error);
 
-            // Fire-and-forget: generate and send conditions report for new subscribers
-            generateAndSendReport(to, bulletin, massif).catch(console.error);
+            // conditions_report disabled — not ready for production
+            // generateAndSendReport(to, bulletin, massif).catch(console.error);
         }
     }
 

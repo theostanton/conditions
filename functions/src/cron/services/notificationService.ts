@@ -164,15 +164,14 @@ export namespace NotificationService {
         // Use subscription content types or default to bulletin only
         const contentTypes = message.subscription || { bulletin: true };
 
-        // Send conditions report BEFORE bulletin if subscriber opted in
-        if (message.report && (message.subscription as any)?.conditions_report) {
-            try {
-                await bot.api.sendMessage(message.recipient, message.report.fullReport);
-            } catch (error) {
-                console.error(`Failed to send report to ${message.recipient}:`, error);
-                // Don't fail the whole delivery — fall through to bulletin
-            }
-        }
+        // conditions_report disabled — not ready for production
+        // if (message.report && (message.subscription as any)?.conditions_report) {
+        //     try {
+        //         await bot.api.sendMessage(message.recipient, message.report.fullReport);
+        //     } catch (error) {
+        //         console.error(`Failed to send report to ${message.recipient}:`, error);
+        //     }
+        // }
 
         // Subscription deliveries should show the Manage Subscription button
         await ContentDeliveryService.sendWithBotApi(bot, message.recipient, message.bulletin, massif, contentTypes, 'subscription');

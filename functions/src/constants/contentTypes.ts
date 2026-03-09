@@ -56,12 +56,13 @@ export const CONTENT_TYPE_CONFIGS: ContentTypeConfig[] = [
         emoji: '⚠️',
         endpoint: 'montagne-risques'
     },
-    {
-        key: 'conditions_report',
-        label: 'Conditions Report',
-        emoji: '🏔',
-        endpoint: '' // Not an image endpoint — AI-generated text report
-    }
+    // conditions_report temporarily hidden — not ready for production
+    // {
+    //     key: 'conditions_report',
+    //     label: 'Conditions Report',
+    //     emoji: '🏔',
+    //     endpoint: ''
+    // }
 ];
 
 /**

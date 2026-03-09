@@ -151,31 +151,17 @@ export namespace WhatsappNotificationService {
 
         const contentTypes = message.subscription || {bulletin: true};
 
-        // If subscriber opted in to conditions_report, send via report template
-        // (combines report text + PDF in a single template message)
-        if (message.report && (message.subscription as any)?.conditions_report) {
-            try {
-                await sendReportTemplate(
-                    message.recipient,
-                    message.bulletin,
-                    massif,
-                    message.report.whatsapp,
-                );
-                // Report template includes the PDF, so skip sending bulletin again
-                // but still send additional images if subscribed
-                const imagesOnly = {...contentTypes, bulletin: false};
-                await WhatsAppDelivery.sendBulletinWithContent(
-                    message.recipient,
-                    message.bulletin,
-                    massif,
-                    imagesOnly,
-                );
-                return;
-            } catch (error) {
-                console.error(`[WhatsApp] Failed to send report template to ${message.recipient}:`, error);
-                // Fall through to regular bulletin delivery
-            }
-        }
+        // conditions_report disabled — not ready for production
+        // if (message.report && (message.subscription as any)?.conditions_report) {
+        //     try {
+        //         await sendReportTemplate(message.recipient, message.bulletin, massif, message.report.whatsapp);
+        //         const imagesOnly = {...contentTypes, bulletin: false};
+        //         await WhatsAppDelivery.sendBulletinWithContent(message.recipient, message.bulletin, massif, imagesOnly);
+        //         return;
+        //     } catch (error) {
+        //         console.error(`[WhatsApp] Failed to send report template to ${message.recipient}:`, error);
+        //     }
+        // }
 
         await WhatsAppDelivery.sendBulletinWithContent(
             message.recipient,

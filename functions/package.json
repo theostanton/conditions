@@ -9,7 +9,8 @@
     "build": "tsc --project tsconfig.json && tsc-alias -p tsconfig.json",
     "bot:run": "ts-node -r tsconfig-paths/register src/botRun.ts",
     "cron:run": "ts-node -r tsconfig-paths/register src/cronRun.ts",
-    "weather:run": "ts-node -r tsconfig-paths/register src/weatherRun.ts"
+    "weather:run": "ts-node -r tsconfig-paths/register src/weatherRun.ts",
+    "routes:run": "ts-node -r tsconfig-paths/register src/routesRun.ts"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^4.0.0",

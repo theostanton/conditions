@@ -10,7 +10,7 @@
 
 const GCS_BASE = 'https://storage.googleapis.com/conditions-450312-bras/landing';
 const CACHE_KEY_BASE = 'https://conditionsreport.com/__landing';
-// Injected by Terraform templatefile() — do NOT use ${} syntax elsewhere in this file
+// Injected by Terraform templatefile() — avoid dollar-brace syntax elsewhere in this file
 const REPORT_FUNCTION_URL = '${report_function_url}';
 
 async function handleRequest(request) {

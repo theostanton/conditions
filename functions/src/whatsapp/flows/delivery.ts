@@ -1,6 +1,7 @@
 import {Bulletin, ContentTypes, Massif} from "@app-types";
 import {ImageService} from "@services/imageService";
 import {WhatsAppClient} from "@whatsapp/client";
+import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 import type {TemplateComponent} from "@whatsapp/types";
 import type {WhatsAppReportFields} from "@services/reportService";
@@ -128,7 +129,7 @@ export async function sendReportTemplate(
         await WhatsAppClient.sendTemplate(to, 'conditions_report', 'en', components);
     } catch (error) {
         // Template may not be approved yet — fall back to bulletin template
-        console.warn(`[sendReportTemplate] conditions_report template failed, falling back to bulletin template:`, error);
+        console.warn(`[sendReportTemplate] conditions_report template failed, falling back to bulletin template: ${formatError(error)}`);
         await sendBulletinTemplate(to, bulletin, massif);
     }
 }
@@ -167,7 +168,7 @@ export namespace WhatsAppDelivery {
             try {
                 await sendBulletinTemplate(to, bulletin, massif);
             } catch (error) {
-                console.error(`Failed to send bulletin PDF for ${massif.name}:`, error);
+                console.error(`Failed to send bulletin PDF for ${massif.name}: ${formatError(error)}`);
                 await Analytics.sendError(
                     error as Error,
                     `WhatsAppDelivery: Failed to send bulletin PDF for ${massif.name}`
@@ -181,7 +182,7 @@ export namespace WhatsAppDelivery {
         try {
             fetchedImages = await ImageService.fetchImages(massif.code, contentTypes, bulletin);
         } catch (error) {
-            console.error(`Failed to fetch images for ${massif.name}:`, error);
+            console.error(`Failed to fetch images for ${massif.name}: ${formatError(error)}`);
             await Analytics.sendError(
                 error as Error,
                 `WhatsAppDelivery: Failed to fetch images for ${massif.name}`
@@ -195,7 +196,7 @@ export namespace WhatsAppDelivery {
                 const mediaId = await getOrUploadMedia(image);
                 await WhatsAppClient.sendImage(to, {id: mediaId}, image.caption);
             } catch (error) {
-                console.error(`Failed to send image ${image.filename} for ${massif.name}:`, error);
+                console.error(`Failed to send image ${image.filename} for ${massif.name}: ${formatError(error)}`);
                 // Continue sending remaining images
             }
         }

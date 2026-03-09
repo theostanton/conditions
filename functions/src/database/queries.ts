@@ -1,5 +1,6 @@
 import {getClient} from "@config/database";
 import {BulletinInfos, Platform, Subscription} from "@app-types";
+import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 
 type SubscriptionRow = {
@@ -7,9 +8,22 @@ type SubscriptionRow = {
     recipients: string
 }
 
+async function withErrorReporting<T>(name: string, fn: () => Promise<T>): Promise<T> {
+    try {
+        return await fn();
+    } catch (error) {
+        console.error(`Database error in ${name}: ${formatError(error)}`);
+        await Analytics.sendError(
+            error as Error,
+            `Database.${name}`
+        ).catch(err => console.error('Failed to send error analytics:', err));
+        throw error;
+    }
+}
+
 export namespace Database {
     export async function getMassifsWithSubscribers(platform?: Platform): Promise<string[]> {
-        try {
+        return withErrorReporting('getMassifsWithSubscribers', async () => {
             const client = await getClient();
             const result = platform
                 ? await client.query<Pick<BulletinInfos, "massif">>(
@@ -20,14 +34,7 @@ export namespace Database {
                     "select massif from bra_subscriptions group by massif"
                 );
             return [...result].map(s => s.massif);
-        } catch (error) {
-            console.error('Database error in getMassifsWithSubscribers:', error);
-            await Analytics.sendError(
-                error as Error,
-                'Database.getMassifsWithSubscribers'
-            ).catch(err => console.error('Failed to send error analytics:', err));
-            throw error;
-        }
+        });
     }
 
     export async function getTotalSubscribers(platform: Platform = 'telegram'): Promise<number> {
@@ -40,20 +47,13 @@ export namespace Database {
     }
 
     export async function getLatestStoredBulletins(): Promise<BulletinInfos[]> {
-        try {
+        return withErrorReporting('getLatestStoredBulletins', async () => {
             const client = await getClient();
             const result = await client.query<BulletinInfos>(
                 "select massif, max(valid_from) as valid_from, max(valid_to) as valid_to from bras group by massif"
             );
             return [...result];
-        } catch (error) {
-            console.error('Database error in getLatestStoredBulletins:', error);
-            await Analytics.sendError(
-                error as Error,
-                'Database.getLatestStoredBulletins'
-            ).catch(err => console.error('Failed to send error analytics:', err));
-            throw error;
-        }
+        });
     }
 
     export async function insertBulletin(
@@ -109,7 +109,7 @@ export namespace Database {
             return;
         }
 
-        try {
+        return withErrorReporting(`insertBulletins (${bulletins.length} bulletins)`, async () => {
             const client = await getClient();
             const values: any[] = [];
             const placeholders: string[] = [];
@@ -127,18 +127,11 @@ export namespace Database {
                 values
             );
             console.log(`Batch inserted ${bulletins.length} bulletins into database`);
-        } catch (error) {
-            console.error(`Database error in insertBulletins (${bulletins.length} bulletins):`, error);
-            await Analytics.sendError(
-                error as Error,
-                `Database.insertBulletins: Failed to insert ${bulletins.length} bulletins`
-            ).catch(err => console.error('Failed to send error analytics:', err));
-            throw error;
-        }
+        });
     }
 
     export async function getSubscriptionsByMassif(platform: Platform = 'telegram'): Promise<SubscriptionRow[]> {
-        try {
+        return withErrorReporting('getSubscriptionsByMassif', async () => {
             const client = await getClient();
             const result = await client.query<SubscriptionRow>(
                 `select s.massif as massif, string_agg(s.recipient, ',') as recipients
@@ -148,14 +141,7 @@ export namespace Database {
                 [platform]
             );
             return [...result];
-        } catch (error) {
-            console.error('Database error in getSubscriptionsByMassif:', error);
-            await Analytics.sendError(
-                error as Error,
-                'Database.getSubscriptionsByMassif'
-            ).catch(err => console.error('Failed to send error analytics:', err));
-            throw error;
-        }
+        });
     }
 
     export async function getSubscriptionsByRecipients(recipients: string[], massif: string, platform: Platform = 'telegram'): Promise<Subscription[]> {
@@ -196,7 +182,7 @@ export namespace Database {
         risk_level?: number;
         metadata?: Record<string, any>;
     }>> {
-        try {
+        return withErrorReporting('getValidBulletins', async () => {
             const client = await getClient();
             const result = await client.query(
                 `SELECT DISTINCT ON (massif) massif, filename, public_url, valid_from, valid_to, risk_level, metadata_json
@@ -220,13 +206,6 @@ export namespace Database {
                     metadata,
                 };
             });
-        } catch (error) {
-            console.error('Database error in getValidBulletins:', error);
-            await Analytics.sendError(
-                error as Error,
-                'Database.getValidBulletins'
-            ).catch(err => console.error('Failed to send error analytics:', err));
-            throw error;
-        }
+        });
     }
 }

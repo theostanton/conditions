@@ -5,6 +5,7 @@ import {ActionSubscriptions} from "@bot/actions/subscriptions";
 import {ContentTypes, Massif} from "@app-types";
 import {CONTENT_TYPE_CONFIGS} from "@constants/contentTypes";
 import {BotMessages} from "@bot/messages";
+import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 
 // Store temporary content type selections for managing subscriptions
@@ -47,7 +48,7 @@ async function handleSubscribeCallback(ctx: Context): Promise<void> {
 
         await ctx.answerCallbackQuery();
     } catch (error) {
-        console.error('Error handling subscribe callback:', error);
+        console.error(`Error handling subscribe callback: ${formatError(error)}`);
         await ctx.answerCallbackQuery({
             text: 'Failed to process subscription. Please try again.',
             show_alert: true
@@ -101,7 +102,7 @@ async function handleManageSubscriptionCallback(ctx: Context): Promise<void> {
 
         await ctx.answerCallbackQuery();
     } catch (error) {
-        console.error('Error handling manage subscription callback:', error);
+        console.error(`Error handling manage subscription callback: ${formatError(error)}`);
         await ctx.answerCallbackQuery({
             text: 'Failed to load subscription settings. Please try again.',
             show_alert: true
@@ -127,7 +128,7 @@ async function showContentTypeSelection(ctx: Context, massif: Massif): Promise<v
             parse_mode: BotMessages.parseMode
         });
     } catch (error) {
-        console.error('Error showing content selection:', error);
+        console.error(`Error showing content selection: ${formatError(error)}`);
     }
 }
 
@@ -149,7 +150,7 @@ async function showManagementMenu(ctx: Context, massif: Massif): Promise<void> {
             parse_mode: BotMessages.parseMode
         });
     } catch (error) {
-        console.error('Error showing management menu:', error);
+        console.error(`Error showing management menu: ${formatError(error)}`);
     }
 }
 
@@ -211,7 +212,7 @@ async function handleSubscribeToggle(ctx: Context): Promise<void> {
         await ctx.editMessageReplyMarkup({reply_markup: keyboard});
         await ctx.answerCallbackQuery();
     } catch (error) {
-        console.error('Error updating keyboard:', error);
+        console.error(`Error updating keyboard: ${formatError(error)}`);
     }
 }
 
@@ -238,7 +239,7 @@ async function handleManageToggle(ctx: Context): Promise<void> {
         await ctx.editMessageReplyMarkup({reply_markup: keyboard});
         await ctx.answerCallbackQuery();
     } catch (error) {
-        console.error('Error updating keyboard:', error);
+        console.error(`Error updating keyboard: ${formatError(error)}`);
     }
 }
 
@@ -278,7 +279,7 @@ async function handleSubscribeSave(ctx: Context): Promise<void> {
             console.error('Analytics error:', err)
         );
     } catch (error) {
-        console.error('Error saving subscription:', error);
+        console.error(`Error saving subscription: ${formatError(error)}`);
         await ctx.answerCallbackQuery({
             text: 'Failed to save subscription. Please try again.',
             show_alert: true
@@ -323,7 +324,7 @@ async function handleManageSave(ctx: Context): Promise<void> {
             console.error('Analytics error:', err)
         );
     } catch (error) {
-        console.error('Error updating subscription:', error);
+        console.error(`Error updating subscription: ${formatError(error)}`);
         await ctx.answerCallbackQuery({
             text: 'Failed to update subscription. Please try again.',
             show_alert: true
@@ -366,7 +367,7 @@ async function handleManageUnsubscribe(ctx: Context): Promise<void> {
             console.error('Analytics error:', err)
         );
     } catch (error) {
-        console.error('Error unsubscribing:', error);
+        console.error(`Error unsubscribing: ${formatError(error)}`);
         await ctx.answerCallbackQuery({
             text: 'Failed to unsubscribe. Please try again.',
             show_alert: true

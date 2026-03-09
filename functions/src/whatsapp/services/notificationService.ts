@@ -3,6 +3,7 @@ import {Database} from "@database/queries";
 import {Deliveries} from "@database/models/Deliveries";
 import {ArrayUtils} from "@utils/array";
 import {AsyncUtils} from "@utils/async";
+import {formatError} from "@utils/formatters";
 import {WhatsAppDelivery, sendReportTemplate} from "@whatsapp/flows/delivery";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
@@ -95,12 +96,12 @@ export namespace WhatsappNotificationService {
                     try {
                         await Deliveries.recordDelivery(msg.recipient, msg.bulletin, 'whatsapp');
                     } catch (error) {
-                        console.error(`[WhatsApp] Failed to record delivery for ${msg.recipient}:`, error);
+                        console.error(`[WhatsApp] Failed to record delivery for ${msg.recipient}: ${formatError(error)}`);
                         recordingFailures.push({recipient: msg.recipient, error});
                     }
                 } else {
                     totalFailed++;
-                    console.error(`[WhatsApp] Failed to send to ${msg.recipient}:`, result.reason);
+                    console.error(`[WhatsApp] Failed to send to ${msg.recipient}: ${formatError(result.reason)}`);
                     failedRecipients.push({
                         recipient: msg.recipient,
                         massif: msg.massif,
@@ -169,7 +170,7 @@ export namespace WhatsappNotificationService {
                 );
                 return;
             } catch (error) {
-                console.error(`[WhatsApp] Failed to send report template to ${message.recipient}:`, error);
+                console.error(`[WhatsApp] Failed to send report template to ${message.recipient}: ${formatError(error)}`);
             }
         }
 

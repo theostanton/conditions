@@ -233,7 +233,7 @@ export namespace BulletinService {
                     metadata: bulletin.metadata,
                 });
             } else {
-                console.error(`Failed to process bulletin for massif ${bulletin.massif}:`, result.reason);
+                console.error(`Failed to process bulletin for massif ${bulletin.massif}: ${formatError(result.reason)}`);
                 failedBulletins.push({massif: bulletin.massif, error: result.reason});
             }
         }

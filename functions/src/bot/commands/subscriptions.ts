@@ -3,6 +3,7 @@ import {Menu} from "@grammyjs/menu";
 import {MassifCache} from "@cache/MassifCache";
 import {ActionSubscriptions} from "@bot/actions/subscriptions";
 import {Subscriptions} from "@database/models/Subscriptions";
+import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 import {Massif} from "@app-types";
 import {CONTENT_TYPE_CONFIGS} from "@constants/contentTypes";
@@ -37,10 +38,10 @@ export namespace CommandSubscriptions {
                     parse_mode: BotMessages.parseMode,
                     reply_markup: getMenu
                 }).catch(err => {
-                    console.error('Error updating message:', err);
+                    console.error(`Error updating message: ${formatError(err)}`);
                 });
             } catch (err) {
-                console.error('Error navigating to get:', err);
+                console.error(`Error navigating to get: ${formatError(err)}`);
             }
         }).row();
 
@@ -57,7 +58,7 @@ export namespace CommandSubscriptions {
                     if (!context.from?.id) return;
                     ActionSubscriptions.toggleContentType(context.from.id, massif, config.key);
                     await context.menu.update({immediate: true}).catch(err =>
-                        console.error('Error updating menu:', err)
+                        console.error(`Error updating menu: ${formatError(err)}`)
                     );
                 }).row();
             }
@@ -83,7 +84,7 @@ export namespace CommandSubscriptions {
 
         massifMenu.back("← Back", async (ctx) => {
             await ctx.editMessageText(BotMessages.menuHeaders.selectRange, {parse_mode: BotMessages.parseMode}).catch(err =>
-                console.error('Error updating message text:', err)
+                console.error(`Error updating message text: ${formatError(err)}`)
             );
         }).row();
 
@@ -115,7 +116,7 @@ export namespace CommandSubscriptions {
                         ActionSubscriptions.initializeContentTypes(ctx.from.id, massif);
                         // Update message text to show massif name
                         await ctx.editMessageText(BotMessages.menuHeaders.chooseContent(massif.name), {parse_mode: BotMessages.parseMode}).catch(err =>
-                            console.error('Error updating message text:', err)
+                            console.error(`Error updating message text: ${formatError(err)}`)
                         );
                     }).row();
                 }
@@ -141,7 +142,7 @@ export namespace CommandSubscriptions {
             for (const mountain of mountains) {
                 range.submenu(mountain, `subscriptions-massifs-${mountain}`, async (ctx) => {
                     await ctx.editMessageText(BotMessages.menuHeaders.yourSubscriptions(mountain), {parse_mode: BotMessages.parseMode}).catch(err =>
-                        console.error('Error updating message text:', err)
+                        console.error(`Error updating message text: ${formatError(err)}`)
                     );
                 }).row();
             }

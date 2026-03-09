@@ -4,6 +4,7 @@ import {Database} from "@database/queries";
 import {Deliveries} from "@database/models/Deliveries";
 import {ArrayUtils} from "@utils/array";
 import {AsyncUtils} from "@utils/async";
+import {formatError} from "@utils/formatters";
 import {ContentDeliveryService} from "@services/contentDeliveryService";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
@@ -104,12 +105,12 @@ export namespace NotificationService {
                     try {
                         await Deliveries.recordDelivery(msg.recipient, msg.bulletin);
                     } catch (error) {
-                        console.error(`Failed to record delivery for ${msg.recipient}:`, error);
+                        console.error(`Failed to record delivery for ${msg.recipient}: ${formatError(error)}`);
                         recordingFailures.push({recipient: msg.recipient, error});
                     }
                 } else {
                     totalFailed++;
-                    console.error(`Failed to send to ${msg.recipient}:`, result.reason);
+                    console.error(`Failed to send to ${msg.recipient}: ${formatError(result.reason)}`);
                     failedRecipients.push({
                         recipient: msg.recipient,
                         massif: msg.massif,
@@ -169,7 +170,7 @@ export namespace NotificationService {
             try {
                 await bot.api.sendMessage(message.recipient, message.report.fullReport);
             } catch (error) {
-                console.error(`Failed to send report to ${message.recipient}:`, error);
+                console.error(`Failed to send report to ${message.recipient}: ${formatError(error)}`);
             }
         }
 

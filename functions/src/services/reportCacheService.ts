@@ -1,4 +1,5 @@
 import {getClient} from "@config/database";
+import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 import type {ConditionsReport} from "@services/reportService";
 
@@ -47,7 +48,7 @@ export namespace ReportCacheService {
                 };
             }
         } catch (error) {
-            console.error(`Failed to read cached report for ${massifCode}:`, error);
+            console.error(`Failed to read cached report for ${massifCode}: ${formatError(error)}`);
             return null;
         }
     }
@@ -72,7 +73,7 @@ export namespace ReportCacheService {
                 [massifCode, validFrom, report.fullReport, Object.values(report.whatsapp).join(' | '), JSON.stringify(report), promptVersion]
             );
         } catch (error) {
-            console.error(`Failed to save report for ${massifCode}:`, error);
+            console.error(`Failed to save report for ${massifCode}: ${formatError(error)}`);
             await Analytics.sendError(
                 error as Error,
                 `ReportCacheService.saveToDb: ${massifCode}`

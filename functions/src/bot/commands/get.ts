@@ -2,6 +2,7 @@ import {Bot, Context} from "grammy";
 import {Menu} from "@grammyjs/menu";
 import {MassifCache} from "@cache/MassifCache";
 import {ActionBulletins} from "@bot/actions/bulletins";
+import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 import {ContentTypes, Massif} from "@app-types";
 import {CONTENT_TYPE_CONFIGS} from "@constants/contentTypes";
@@ -30,14 +31,14 @@ export namespace CommandGet {
                     try {
                         await Analytics.send(`${context.from?.id} got ${massif.name} - ${analyticsLabel}`);
                     } catch (analyticsError) {
-                        console.error('Analytics error (non-critical):', analyticsError);
+                        console.error(`Analytics error (non-critical): ${formatError(analyticsError)}`);
                     }
                 } catch (error) {
-                    console.error(`Error sending ${analyticsLabel}:`, error);
+                    console.error(`Error sending ${analyticsLabel}: ${formatError(error)}`);
                     try {
                         await context.reply(errorMessage);
                     } catch (replyError) {
-                        console.error('Failed to send error message:', replyError);
+                        console.error(`Failed to send error message: ${formatError(replyError)}`);
                     }
                 }
             };
@@ -55,7 +56,7 @@ export namespace CommandGet {
                 }
             }
             await ctx.editMessageText(BotMessages.menuHeaders.selectMassif(mountain), {parse_mode: BotMessages.parseMode}).catch(err =>
-                console.error('Error updating message text:', err)
+                console.error(`Error updating message text: ${formatError(err)}`)
             );
         }).row();
 
@@ -148,7 +149,7 @@ export namespace CommandGet {
 
         massifMenu.back("← Back", async (ctx) => {
             await ctx.editMessageText(BotMessages.menuHeaders.selectRange, {parse_mode: BotMessages.parseMode}).catch(err =>
-                console.error('Error updating message text:', err)
+                console.error(`Error updating message text: ${formatError(err)}`)
             );
         }).row();
 
@@ -159,7 +160,7 @@ export namespace CommandGet {
             for (const massif of massifs) {
                 range.submenu(massif.name, `get-content-${massif.code}`, async (ctx) => {
                     await ctx.editMessageText(BotMessages.menuHeaders.download(massif.name), {parse_mode: BotMessages.parseMode}).catch(err =>
-                        console.error('Error updating message text:', err)
+                        console.error(`Error updating message text: ${formatError(err)}`)
                     );
                 }).row();
             }
@@ -183,7 +184,7 @@ export namespace CommandGet {
             for (const mountain of mountains) {
                 range.submenu(mountain, `get-massifs-${mountain}`, async (ctx) => {
                     await ctx.editMessageText(BotMessages.menuHeaders.selectMassif(mountain), {parse_mode: BotMessages.parseMode}).catch(err =>
-                        console.error('Error updating message text:', err)
+                        console.error(`Error updating message text: ${formatError(err)}`)
                     );
                 }).row();
             }

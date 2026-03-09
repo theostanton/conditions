@@ -3,6 +3,7 @@ import {Bulletin, ContentTypes} from "@app-types";
 import {CONTENT_TYPE_CONFIGS, getImageContentTypes, ContentTypeKey} from "@constants/contentTypes";
 import axios, {AxiosHeaders} from "axios";
 import {MassifCache} from "@cache/MassifCache";
+import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 
 const meteoFranceHeaders: AxiosHeaders = new AxiosHeaders();
@@ -128,7 +129,7 @@ export namespace ImageService {
         } catch (error) {
             const massifName = MassifCache.findByCode(massifCode)?.name || `massif ${massifCode}`;
             const errorContext = `Failed to fetch ${imageType} image for ${massifName}`;
-            console.error(`${errorContext}:`, error);
+            console.error(`${errorContext}: ${formatError(error)}`);
 
             // Report to admin
             await Analytics.sendError(
@@ -163,7 +164,7 @@ export namespace ImageService {
             } else {
                 const imageType = imageTypes[i];
                 failedTypes.push(imageType);
-                console.error(`Failed to fetch ${imageType} image:`, result.reason);
+                console.error(`Failed to fetch ${imageType} image: ${formatError(result.reason)}`);
             }
         }
 

@@ -170,7 +170,7 @@ export default async function () {
         try {
             await CronExecutions.insert(execution);
         } catch (dbError) {
-            console.error('Failed to insert cron execution record:', dbError);
+            console.error(`Failed to insert cron execution record: ${formatError(dbError)}`);
             await Analytics.sendError(
                 dbError as Error,
                 'Failed to insert cron execution record'

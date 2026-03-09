@@ -36,6 +36,35 @@ function pointInPolygon(point: [number, number], coordinates: number[][][]): boo
 }
 
 /**
+ * Compute the centroid of a GeoJSON geometry as [lng, lat].
+ * Uses the arithmetic mean of all coordinates in the outer ring(s).
+ */
+export function getCentroid(geometry: GeoJSONGeometry): [number, number] {
+    const points: number[][] = [];
+
+    if (geometry.type === 'Polygon') {
+        points.push(...geometry.coordinates[0]);
+    } else if (geometry.type === 'MultiPolygon') {
+        for (const polygon of geometry.coordinates) {
+            points.push(...polygon[0]);
+        }
+    }
+
+    if (points.length === 0) {
+        throw new Error('Cannot compute centroid of empty geometry');
+    }
+
+    let sumLng = 0;
+    let sumLat = 0;
+    for (const [lng, lat] of points) {
+        sumLng += lng;
+        sumLat += lat;
+    }
+
+    return [sumLng / points.length, sumLat / points.length];
+}
+
+/**
  * Check if a point [lng, lat] is inside a GeoJSON geometry.
  * Supports Polygon and MultiPolygon.
  */

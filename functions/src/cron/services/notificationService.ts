@@ -7,6 +7,7 @@ import {AsyncUtils} from "@utils/async";
 import {ContentDeliveryService} from "@services/contentDeliveryService";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
+import type {ConditionsReport} from "@services/reportService";
 
 export namespace NotificationService {
 
@@ -47,7 +48,7 @@ export namespace NotificationService {
         return destinations;
     }
 
-    export async function send(destinations: BulletinDestination[]): Promise<number> {
+    export async function send(destinations: BulletinDestination[], reports?: Map<string, ConditionsReport>): Promise<number> {
         // Flatten all messages to send with their subscription details
         const messages = destinations.flatMap(destination => {
             // Build bulletin object once for this destination
@@ -65,7 +66,8 @@ export namespace NotificationService {
                     recipient,
                     bulletin,
                     massif: destination.massif,
-                    subscription: subscription
+                    subscription: subscription,
+                    report: reports?.get(destination.massif),
                 };
             });
         });
@@ -151,7 +153,8 @@ export namespace NotificationService {
         recipient: string,
         bulletin: Bulletin,
         massif: string,
-        subscription?: Subscription
+        subscription?: Subscription,
+        report?: ConditionsReport,
     }): Promise<void> {
         const massif = MassifCache.findByCode(message.massif);
         if (!massif) {
@@ -160,6 +163,16 @@ export namespace NotificationService {
 
         // Use subscription content types or default to bulletin only
         const contentTypes = message.subscription || { bulletin: true };
+
+        // Send conditions report BEFORE bulletin if subscriber opted in
+        if (message.report && (message.subscription as any)?.conditions_report) {
+            try {
+                await bot.api.sendMessage(message.recipient, message.report.fullReport);
+            } catch (error) {
+                console.error(`Failed to send report to ${message.recipient}:`, error);
+                // Don't fail the whole delivery — fall through to bulletin
+            }
+        }
 
         // Subscription deliveries should show the Manage Subscription button
         await ContentDeliveryService.sendWithBotApi(bot, message.recipient, message.bulletin, massif, contentTypes, 'subscription');

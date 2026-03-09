@@ -11,14 +11,14 @@ const RISK_LABELS: Record<number, string> = {
     5: 'Very High',
 };
 
-// Emoji headers used in the full report, mapped to card styles
-const SECTION_CONFIG: {emoji: string; label: string; color: string}[] = [
-    {emoji: '\u26A0\uFE0F', label: 'Avalanche Risk', color: '#ef4444'},
-    {emoji: '\uD83C\uDF21\uFE0F', label: 'Weather', color: '#3b82f6'},
-    {emoji: '\u2744\uFE0F', label: 'Snow Quality', color: '#a5b4fc'},
-    {emoji: '\u2B50', label: 'Best Conditions', color: '#eab308'},
-    {emoji: '\uD83C\uDFBF', label: 'Route Suggestions', color: '#22c55e'},
-    {emoji: '\u2600\uFE0F', label: 'Sunrise / Sunset', color: '#f97316'},
+// Section config — order matters. Sunrise is rendered inline, not as a card.
+const SECTION_CONFIG: {emoji: string; key: string; label: string; color: string}[] = [
+    {emoji: '\u26A0\uFE0F', key: 'risk', label: 'Avalanche Risk', color: '#ef4444'},
+    {emoji: '\uD83C\uDF21\uFE0F', key: 'weather', label: 'Weather', color: '#60a5fa'},
+    {emoji: '\u2744\uFE0F', key: 'snow', label: 'Snow Conditions', color: '#c4b5fd'},
+    {emoji: '\u2B50', key: 'best', label: 'Best Conditions', color: '#fbbf24'},
+    {emoji: '\uD83C\uDFBF', key: 'routes', label: 'Routes', color: '#34d399'},
+    {emoji: '\u2600\uFE0F', key: 'sun', label: 'Sunrise / Sunset', color: '#fb923c'},
 ];
 
 function escapeHtml(str: string): string {
@@ -29,133 +29,188 @@ function escapeHtml(str: string): string {
         .replace(/"/g, '&quot;');
 }
 
+function riskColor(level: number): string {
+    if (level >= 4) return '#ef4444';
+    if (level === 3) return '#f59e0b';
+    if (level === 2) return '#eab308';
+    return '#22c55e';
+}
+
 function baseStyles(): string {
     return `
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #111827;
+            background: #0f172a;
             min-height: 100vh;
-            color: #fafafa;
-            padding: 0;
+            color: #e2e8f0;
+            -webkit-font-smoothing: antialiased;
         }
-        body::before {
-            content: '';
-            position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -55%);
-            width: 800px; height: 600px;
-            background: radial-gradient(ellipse, rgba(56, 120, 200, 0.07) 0%, transparent 70%);
-            pointer-events: none;
-            z-index: 0;
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        a { color: #60a5fa; text-decoration: none; }
-        a:hover { text-decoration: underline; }
+
         .container {
-            max-width: 680px;
+            max-width: 620px;
             margin: 0 auto;
-            padding: 48px 24px;
-            position: relative;
-            z-index: 1;
+            padding: 40px 20px 32px;
         }
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 14px;
-            color: #a1a1aa;
-            margin-bottom: 32px;
-        }
-        .back-link:hover { color: #fafafa; text-decoration: none; }
-        header { margin-bottom: 36px; }
-        header h1 {
-            font-size: 32px;
-            font-weight: 600;
-            letter-spacing: -0.02em;
-            margin-bottom: 6px;
-        }
-        header .date {
-            font-size: 15px;
-            color: #a1a1aa;
-        }
-        header .risk-badge {
-            display: inline-block;
-            margin-top: 12px;
-            padding: 4px 12px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        .card {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 16px;
-        }
-        .card-header {
-            font-size: 15px;
-            font-weight: 600;
-            margin-bottom: 10px;
+
+        /* Nav */
+        nav {
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: space-between;
+            margin-bottom: 32px;
+            animation: fadeUp 0.4s ease-out both;
         }
-        .card-body {
-            font-size: 14px;
-            line-height: 1.7;
-            color: #d4d4d8;
-            white-space: pre-wrap;
+        nav a {
+            font-size: 13px;
+            color: #64748b;
+            text-decoration: none;
+            transition: color 150ms;
         }
-        .cta-section {
-            margin-top: 40px;
-            text-align: center;
-            padding: 32px 24px;
-            background: rgba(34, 197, 94, 0.06);
-            border: 1px solid rgba(34, 197, 94, 0.2);
-            border-radius: 12px;
+        nav a:hover { color: #94a3b8; }
+        .nav-date { font-size: 13px; color: #475569; }
+
+        /* Header */
+        .report-header {
+            margin-bottom: 28px;
+            animation: fadeUp 0.4s ease-out 0.05s both;
         }
-        .cta-section h2 {
-            font-size: 18px;
+        .report-header h1 {
+            font-size: 28px;
             font-weight: 600;
-            margin-bottom: 8px;
+            letter-spacing: -0.03em;
+            color: #f8fafc;
+            line-height: 1.2;
         }
-        .cta-section p {
+
+        /* Risk hero */
+        .risk-hero {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            animation: fadeUp 0.4s ease-out 0.1s both;
+        }
+        .risk-number {
+            font-size: 48px;
+            font-weight: 600;
+            letter-spacing: -0.04em;
+            line-height: 1;
+        }
+        .risk-number span {
+            font-size: 20px;
+            opacity: 0.5;
+            font-weight: 400;
+        }
+        .risk-detail { flex: 1; min-width: 0; }
+        .risk-label {
             font-size: 14px;
-            color: #a1a1aa;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+        .risk-desc {
+            font-size: 13px;
+            line-height: 1.6;
+            opacity: 0.8;
+        }
+
+        /* Section */
+        .section {
+            border-left: 3px solid;
+            padding: 0 0 0 16px;
             margin-bottom: 20px;
         }
-        .wa-button {
+        .section-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+        .section-body {
+            font-size: 14px;
+            line-height: 1.65;
+            color: #cbd5e1;
+            white-space: pre-wrap;
+        }
+
+        /* Sunrise bar */
+        .sun-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            padding: 12px 0;
+            margin: 4px 0 24px;
+            font-size: 13px;
+            color: #64748b;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .sun-bar span { color: #94a3b8; }
+
+        /* CTA */
+        .cta {
+            margin-top: 36px;
+            padding: 28px 24px;
+            text-align: center;
+            border: 1px solid rgba(34, 197, 94, 0.15);
+            border-radius: 10px;
+            background: rgba(34, 197, 94, 0.04);
+        }
+        .cta p {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 16px;
+        }
+        .cta p strong { color: #94a3b8; font-weight: 500; }
+        .wa-btn {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            font-size: 15px;
+            gap: 8px;
+            font-size: 14px;
             font-weight: 500;
-            padding: 12px 28px;
-            border-radius: 10px;
+            padding: 10px 24px;
+            border-radius: 8px;
             text-decoration: none;
-            background: rgba(34, 197, 94, 0.12);
-            border: 1px solid rgba(34, 197, 94, 0.4);
-            color: #22c55e;
-            transition: all 150ms ease;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #4ade80;
+            transition: all 150ms;
         }
-        .wa-button:hover {
-            background: rgba(34, 197, 94, 0.2);
+        .wa-btn:hover {
+            background: rgba(34, 197, 94, 0.18);
+            border-color: rgba(34, 197, 94, 0.5);
             text-decoration: none;
         }
-        .wa-button svg { width: 20px; height: 20px; flex-shrink: 0; }
+        .wa-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+        /* Footer */
         footer {
-            margin-top: 48px;
+            margin-top: 40px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.04);
             text-align: center;
-            font-size: 13px;
-            color: #52525b;
-            padding-bottom: 24px;
+            font-size: 12px;
+            color: #334155;
         }
-        footer a { color: #71717a; }
-        footer a:hover { color: #a1a1aa; }
+        footer a { color: #475569; text-decoration: none; }
+        footer a:hover { color: #64748b; }
+
         @media (max-width: 600px) {
-            .container { padding: 32px 16px; }
-            header h1 { font-size: 26px; }
+            .container { padding: 24px 16px 24px; }
+            .report-header h1 { font-size: 24px; }
+            .risk-hero { gap: 16px; padding: 16px; }
+            .risk-number { font-size: 40px; }
         }
     `;
 }
@@ -191,18 +246,16 @@ ${body}
 </html>`;
 }
 
-function parseReportSections(fullReport: string): {emoji: string; label: string; color: string; content: string}[] {
-    const sections: {emoji: string; label: string; color: string; content: string}[] = [];
+function parseReportSections(fullReport: string): {key: string; emoji: string; label: string; color: string; content: string}[] {
+    const sections: {key: string; emoji: string; label: string; color: string; content: string}[] = [];
 
     for (const config of SECTION_CONFIG) {
         const idx = fullReport.indexOf(config.emoji);
         if (idx === -1) continue;
 
-        // Find the start of content (after the header line)
         const headerEnd = fullReport.indexOf('\n', idx);
         if (headerEnd === -1) continue;
 
-        // Find the end (next section emoji or end of text)
         let endIdx = fullReport.length;
         for (const other of SECTION_CONFIG) {
             if (other.emoji === config.emoji) continue;
@@ -219,13 +272,6 @@ function parseReportSections(fullReport: string): {emoji: string; label: string;
     }
 
     return sections;
-}
-
-function riskBadgeStyle(level: number): string {
-    if (level >= 4) return 'background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);';
-    if (level === 3) return 'background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);';
-    if (level === 2) return 'background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.3);';
-    return 'background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3);';
 }
 
 export function renderReportPage(massif: Massif, report: ConditionsReport, bulletin: Bulletin): string {
@@ -245,43 +291,68 @@ export function renderReportPage(massif: Massif, report: ConditionsReport, bulle
         : `${massif.name} ski touring conditions report`;
 
     const sections = parseReportSections(report.fullReport);
-
     const waLink = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(massif.name)}`;
 
-    let cardsHtml = '';
-    for (const section of sections) {
-        cardsHtml += `
-        <div class="card">
-            <div class="card-header" style="color: ${section.color};">
-                <span>${section.emoji}</span> ${escapeHtml(section.label)}
+    // Risk hero — pull the risk section out for special treatment
+    const riskSection = sections.find(s => s.key === 'risk');
+    const sunSection = sections.find(s => s.key === 'sun');
+    const contentSections = sections.filter(s => s.key !== 'risk' && s.key !== 'sun');
+
+    const color = riskLevel ? riskColor(riskLevel) : '#64748b';
+    const riskHeroHtml = riskLevel
+        ? `<div class="risk-hero" style="background: ${color}10; border: 1px solid ${color}25;">
+            <div class="risk-number" style="color: ${color};">${escapeHtml(String(riskLevel))}<span>/5</span></div>
+            <div class="risk-detail">
+                <div class="risk-label" style="color: ${color};">${riskLabel ? escapeHtml(riskLabel) : 'Unknown'}</div>
+                ${riskSection ? `<div class="risk-desc">${escapeHtml(riskSection.content)}</div>` : ''}
             </div>
-            <div class="card-body">${escapeHtml(section.content)}</div>
+        </div>`
+        : (riskSection
+            ? `<div class="section" style="border-color: ${riskSection.color}; animation: fadeUp 0.4s ease-out 0.1s both;">
+                <div class="section-label" style="color: ${riskSection.color};">${escapeHtml(riskSection.label)}</div>
+                <div class="section-body">${escapeHtml(riskSection.content)}</div>
+            </div>`
+            : '');
+
+    let sectionsHtml = '';
+    let delay = 0.15;
+    for (const section of contentSections) {
+        delay += 0.04;
+        sectionsHtml += `
+        <div class="section" style="border-color: ${section.color}; animation: fadeUp 0.4s ease-out ${delay.toFixed(2)}s both;">
+            <div class="section-label" style="color: ${section.color};">${escapeHtml(section.label)}</div>
+            <div class="section-body">${escapeHtml(section.content)}</div>
         </div>`;
     }
 
-    const riskBadgeHtml = riskLevel
-        ? `<span class="risk-badge" style="${riskBadgeStyle(riskLevel)}">Avalanche Risk: ${escapeHtml(String(riskLevel))}/5 ${riskLabel ? `(${escapeHtml(riskLabel)})` : ''}</span>`
+    // Sunrise bar — compact inline
+    const sunHtml = sunSection
+        ? `<div class="sun-bar" style="animation: fadeUp 0.4s ease-out ${(delay + 0.04).toFixed(2)}s both;">
+            <span>${escapeHtml(sunSection.content)}</span>
+        </div>`
         : '';
 
     const body = `
     <div class="container">
-        <a href="/" class="back-link">&larr; conditionsreport.com</a>
-        <header>
+        <nav>
+            <a href="/">&larr; conditionsreport.com</a>
+            <div class="nav-date">${escapeHtml(dateStr)}</div>
+        </nav>
+        <div class="report-header">
             <h1>${escapeHtml(massif.name)}</h1>
-            <div class="date">${escapeHtml(dateStr)}</div>
-            ${riskBadgeHtml}
-        </header>
-        ${cardsHtml}
-        <div class="cta-section">
-            <h2>Get this report daily</h2>
-            <p>Receive ${escapeHtml(massif.name)} conditions every morning on WhatsApp</p>
-            <a href="${waLink}" class="wa-button" target="_blank" rel="noopener">
+        </div>
+        ${riskHeroHtml}
+        ${sectionsHtml}
+        ${sunHtml}
+        <div class="cta" style="animation: fadeUp 0.4s ease-out ${(delay + 0.08).toFixed(2)}s both;">
+            <p>Get <strong>${escapeHtml(massif.name)}</strong> conditions daily on WhatsApp</p>
+            <a href="${waLink}" class="wa-btn" target="_blank" rel="noopener">
                 ${whatsappSvg()}
-                Send to me on WhatsApp
+                Send to me
             </a>
         </div>
         <footer>
-            <a href="/">conditionsreport.com</a> &middot; built by <a href="https://theo.dev" target="_blank" rel="noopener">theo.dev</a>
+            <a href="/">conditionsreport.com</a> &middot; <a href="https://theo.dev" target="_blank" rel="noopener">theo.dev</a>
         </footer>
     </div>`;
 
@@ -297,17 +368,16 @@ export function renderLoadingPage(massif: Massif): string {
         <style>
             @keyframes spin { to { transform: rotate(360deg); } }
             .spinner {
-                width: 40px; height: 40px;
-                border: 3px solid rgba(255,255,255,0.1);
+                width: 32px; height: 32px;
+                border: 2px solid rgba(255,255,255,0.08);
                 border-top-color: #60a5fa;
                 border-radius: 50%;
                 animation: spin 0.8s linear infinite;
-                margin: 0 auto 24px;
+                margin: 0 auto 20px;
             }
         </style>
         <div class="spinner"></div>
-        <h1 style="font-size: 22px; margin-bottom: 8px;">Preparing report</h1>
-        <p style="color: #a1a1aa; font-size: 15px;">${escapeHtml(massif.name)} conditions report is being generated...</p>
+        <p style="color: #64748b; font-size: 14px;">${escapeHtml(massif.name)}</p>
     </div>`;
 
     return wrapHtml(title, description, body, {refreshSeconds: 3});
@@ -320,19 +390,21 @@ export function renderNotAvailablePage(massif: Massif): string {
     const waLink = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(massif.name)}`;
 
     const body = `
-    <div class="container" style="text-align: center; padding-top: 80px;">
-        <a href="/" class="back-link">&larr; conditionsreport.com</a>
-        <h1 style="font-size: 26px; margin-bottom: 12px;">${escapeHtml(massif.name)}</h1>
-        <p style="color: #a1a1aa; font-size: 15px; margin-bottom: 32px;">
-            No avalanche bulletin is currently available for this massif.<br>
-            Bulletins are typically published during the winter season.
-        </p>
-        <a href="${waLink}" class="wa-button" target="_blank" rel="noopener">
-            ${whatsappSvg()}
-            Get notified on WhatsApp
-        </a>
+    <div class="container" style="padding-top: 80px;">
+        <nav><a href="/">&larr; conditionsreport.com</a></nav>
+        <div style="text-align: center; margin-top: 48px;">
+            <h1 style="font-size: 24px; font-weight: 600; color: #f8fafc; margin-bottom: 12px;">${escapeHtml(massif.name)}</h1>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 28px; line-height: 1.6;">
+                No avalanche bulletin is currently available.<br>
+                Bulletins are published during the winter season.
+            </p>
+            <a href="${waLink}" class="wa-btn" target="_blank" rel="noopener">
+                ${whatsappSvg()}
+                Get notified on WhatsApp
+            </a>
+        </div>
         <footer>
-            <a href="/">conditionsreport.com</a> &middot; built by <a href="https://theo.dev" target="_blank" rel="noopener">theo.dev</a>
+            <a href="/">conditionsreport.com</a> &middot; <a href="https://theo.dev" target="_blank" rel="noopener">theo.dev</a>
         </footer>
     </div>`;
 

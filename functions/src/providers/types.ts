@@ -7,6 +7,11 @@ export interface BulletinMetadata {
     validTo: Date;
     riskLevel?: number;
     summaryText?: string;
+    freezingLevel?: number;
+    snowStability?: string;
+    snowQuality?: string;
+    windDescription?: string;
+    precipitationForecast?: string;
 }
 
 export interface FetchedBulletin {

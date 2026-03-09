@@ -20,14 +20,31 @@ export namespace BulletinService {
     export async function fetchBulletinMetadata(massifCode: string): Promise<{
         validFrom: Date,
         validTo: Date,
-        riskLevel?: number
+        riskLevel?: number,
+        metadata?: Record<string, any>,
     } | undefined> {
         const provider = getProviderForRegion(massifCode);
         if (!provider) {
             console.error(`No provider found for region ${massifCode}`);
             return undefined;
         }
-        return provider.fetchBulletinMetadata(massifCode);
+        const result = await provider.fetchBulletinMetadata(massifCode);
+        if (!result) return undefined;
+
+        // Collect enhanced metadata fields into a single object
+        const metadata: Record<string, any> = {};
+        if (result.freezingLevel !== undefined) metadata.freezingLevel = result.freezingLevel;
+        if (result.snowStability) metadata.snowStability = result.snowStability;
+        if (result.snowQuality) metadata.snowQuality = result.snowQuality;
+        if (result.windDescription) metadata.windDescription = result.windDescription;
+        if (result.precipitationForecast) metadata.precipitationForecast = result.precipitationForecast;
+
+        return {
+            validFrom: result.validFrom,
+            validTo: result.validTo,
+            riskLevel: result.riskLevel,
+            metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+        };
     }
 
     export async function checkForNewBulletins(massifsWithSubscribers: string[]): Promise<NewBulletinsResult> {
@@ -62,13 +79,13 @@ export namespace BulletinService {
                 continue;
             }
 
-            const {metadata} = result.value;
+            const {metadata: bulletinMeta} = result.value;
 
-            if (!metadata) {
+            if (!bulletinMeta) {
                 console.log(`No bulletin metadata available for massif=${massif}`);
                 failedMassifs.push(massif);
             } else {
-                const {validFrom, validTo, riskLevel} = metadata;
+                const {validFrom, validTo, riskLevel, metadata: enrichedMetadata} = bulletinMeta;
                 const storedBulletin = latestStoredBulletins.find(value => value.massif === massif);
 
                 if (storedBulletin == undefined) {
@@ -77,7 +94,8 @@ export namespace BulletinService {
                         massif: massif,
                         valid_from: validFrom,
                         valid_to: validTo,
-                        risk_level: riskLevel
+                        risk_level: riskLevel,
+                        metadata: enrichedMetadata,
                     });
                     massifsNew.push(massif);
                 } else if (validFrom > storedBulletin.valid_from) {
@@ -86,7 +104,8 @@ export namespace BulletinService {
                         massif: massif,
                         valid_from: validFrom,
                         valid_to: validTo,
-                        risk_level: riskLevel
+                        risk_level: riskLevel,
+                        metadata: enrichedMetadata,
                     });
                     massifsWithUpdate.push(massif);
                 } else {
@@ -190,6 +209,7 @@ export namespace BulletinService {
             validFrom: Date;
             validTo: Date;
             riskLevel?: number;
+            metadata?: Record<string, any>;
         }> = [];
 
         for (let i = 0; i < results.length; i++) {
@@ -205,7 +225,8 @@ export namespace BulletinService {
                     publicUrl,
                     validFrom: bulletin.valid_from,
                     validTo: bulletin.valid_to,
-                    riskLevel: bulletin.risk_level
+                    riskLevel: bulletin.risk_level,
+                    metadata: bulletin.metadata,
                 });
             } else {
                 console.error(`Failed to process bulletin for massif ${bulletin.massif}:`, result.reason);

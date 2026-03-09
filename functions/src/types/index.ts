@@ -6,6 +6,7 @@ export type Bulletin = {
     valid_to: Date,
     risk_level?: number,
     summary_text?: string,
+    metadata?: Record<string, any>,
 }
 
 export type GeoJSONGeometry =
@@ -21,7 +22,7 @@ export type Massif = {
     country?: string,
 }
 
-export type BulletinInfos = Pick<Bulletin, "massif" | "valid_from" | "valid_to" | "risk_level">
+export type BulletinInfos = Pick<Bulletin, "massif" | "valid_from" | "valid_to" | "risk_level" | "metadata">
 
 export type Platform = 'telegram' | 'whatsapp';
 

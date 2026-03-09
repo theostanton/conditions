@@ -1,6 +1,7 @@
 import axios, {AxiosHeaders} from "axios";
 import {createWriteStream} from "fs";
 import {Readable} from "stream";
+import {XMLParser} from "fast-xml-parser";
 import {METEOFRANCE_TOKEN} from "@config/envs";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
@@ -22,20 +23,76 @@ export class MeteoFranceProvider implements BulletinProvider {
                 {headers: meteoFranceHeaders, timeout: 10000}
             );
 
-            const matchFrom = response.data.match(/DATEBULLETIN="(.[0-9-T:]*)"/);
-            const matchUntil = response.data.match(/DATEVALIDITE="(.[0-9-T:]*)"/);
+            const xml = response.data as string;
+
+            // Core dates — still use regex for reliability (XML structure varies)
+            const matchFrom = xml.match(/DATEBULLETIN="(.[0-9-T:]*)"/);
+            const matchUntil = xml.match(/DATEVALIDITE="(.[0-9-T:]*)"/);
 
             if (matchFrom == null || matchUntil == null) {
                 return undefined;
             }
 
-            const matchRiskLevel = response.data.match(/RISQUEMAXI="(\d+)"/);
+            const matchRiskLevel = xml.match(/RISQUEMAXI="(\d+)"/);
             const riskLevel = matchRiskLevel ? parseInt(matchRiskLevel[1], 10) : undefined;
+
+            // Enhanced metadata via XML parser (best-effort, won't fail the whole call)
+            let freezingLevel: number | undefined;
+            let snowStability: string | undefined;
+            let snowQuality: string | undefined;
+            let windDescription: string | undefined;
+            let precipitationForecast: string | undefined;
+
+            try {
+                const parser = new XMLParser({ignoreAttributes: false, attributeNamePrefix: '@_'});
+                const parsed = parser.parse(xml);
+
+                // Navigate the BRA XML structure
+                const bra = parsed?.BULLETINS_NEIGE_AVALANCHE?.BRA;
+                if (bra) {
+                    // Freezing level (isotherme 0°C)
+                    const matchIso = xml.match(/ISOTHERME_0="(-?\d+)"/);
+                    if (matchIso) {
+                        freezingLevel = parseInt(matchIso[1], 10);
+                    }
+
+                    // Snow stability text
+                    const stabilite = bra.STABILITE?.TEXTE;
+                    if (typeof stabilite === 'string' && stabilite.trim()) {
+                        snowStability = stabilite.trim();
+                    }
+
+                    // Snow quality description
+                    const qualite = bra.QUALITE?.TEXTE;
+                    if (typeof qualite === 'string' && qualite.trim()) {
+                        snowQuality = qualite.trim();
+                    }
+
+                    // Wind description
+                    const vent = bra.METEO?.COMMENTAIRE;
+                    if (typeof vent === 'string' && vent.trim()) {
+                        windDescription = vent.trim();
+                    }
+
+                    // Precipitation / weather forecast text
+                    const meteoTexte = bra.METEO?.TEXTE;
+                    if (typeof meteoTexte === 'string' && meteoTexte.trim()) {
+                        precipitationForecast = meteoTexte.trim();
+                    }
+                }
+            } catch (parseError) {
+                console.warn(`Enhanced XML parsing failed for ${regionCode}, continuing with basic metadata:`, parseError);
+            }
 
             return {
                 validFrom: new Date(matchFrom[1]),
                 validTo: new Date(matchUntil[1]),
                 riskLevel,
+                freezingLevel,
+                snowStability,
+                snowQuality,
+                windDescription,
+                precipitationForecast,
             };
         } catch (error) {
             const massifName = MassifCache.findByCode(regionCode)?.name || `massif ${regionCode}`;

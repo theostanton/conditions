@@ -93,6 +93,7 @@ async function handleManageSubscriptionCallback(ctx: Context): Promise<void> {
             last_7_days: subscription.last_7_days,
             rose_pentes: subscription.rose_pentes,
             montagne_risques: subscription.montagne_risques,
+            conditions_report: subscription.conditions_report,
         });
 
         // Show management menu

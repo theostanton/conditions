@@ -95,7 +95,8 @@ export namespace CommandGet {
             weather: true,
             last_7_days: true,
             rose_pentes: true,
-            montagne_risques: true
+            montagne_risques: true,
+            conditions_report: false,
         };
 
         contentTypeMenu.text("✨ All Content", createContentHandler(
@@ -114,7 +115,8 @@ export namespace CommandGet {
                 weather: false,
                 last_7_days: false,
                 rose_pentes: false,
-                montagne_risques: false
+                montagne_risques: false,
+                conditions_report: false,
             };
             result[key] = true;
             return result;

@@ -11,6 +11,7 @@ import {WhatsAppClient} from "@whatsapp/client";
 import type {Bulletin, Massif} from "@app-types";
 import {Messages} from "@whatsapp/messages";
 import {Analytics} from "@analytics/Analytics";
+import {CONDITIONS_REPORT_ENABLED} from "@constants/contentTypes";
 import type {ConversationState} from "@whatsapp/router";
 import type {ListRow, ListSection} from "@whatsapp/types";
 
@@ -130,8 +131,9 @@ export namespace BulletinFlow {
             await Subscriptions.subscribe(to, massif, undefined, 'whatsapp');
             Analytics.send(`WhatsApp ${to} auto-subscribed to ${massif.name}`).catch(console.error);
 
-            // conditions_report disabled — not ready for production
-            // generateAndSendReport(to, bulletin, massif).catch(console.error);
+            if (CONDITIONS_REPORT_ENABLED) {
+                generateAndSendReport(to, bulletin, massif).catch(console.error);
+            }
         }
     }
 

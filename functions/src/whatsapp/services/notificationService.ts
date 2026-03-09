@@ -6,6 +6,7 @@ import {AsyncUtils} from "@utils/async";
 import {WhatsAppDelivery, sendReportTemplate} from "@whatsapp/flows/delivery";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
+import {CONDITIONS_REPORT_ENABLED} from "@constants/contentTypes";
 import type {ConditionsReport} from "@services/reportService";
 
 export namespace WhatsappNotificationService {
@@ -151,17 +152,26 @@ export namespace WhatsappNotificationService {
 
         const contentTypes = message.subscription || {bulletin: true};
 
-        // conditions_report disabled — not ready for production
-        // if (message.report && (message.subscription as any)?.conditions_report) {
-        //     try {
-        //         await sendReportTemplate(message.recipient, message.bulletin, massif, message.report.whatsapp);
-        //         const imagesOnly = {...contentTypes, bulletin: false};
-        //         await WhatsAppDelivery.sendBulletinWithContent(message.recipient, message.bulletin, massif, imagesOnly);
-        //         return;
-        //     } catch (error) {
-        //         console.error(`[WhatsApp] Failed to send report template to ${message.recipient}:`, error);
-        //     }
-        // }
+        if (CONDITIONS_REPORT_ENABLED && message.report && (message.subscription as any)?.conditions_report) {
+            try {
+                await sendReportTemplate(
+                    message.recipient,
+                    message.bulletin,
+                    massif!,
+                    message.report.whatsapp,
+                );
+                const imagesOnly = {...contentTypes, bulletin: false};
+                await WhatsAppDelivery.sendBulletinWithContent(
+                    message.recipient,
+                    message.bulletin,
+                    massif!,
+                    imagesOnly,
+                );
+                return;
+            } catch (error) {
+                console.error(`[WhatsApp] Failed to send report template to ${message.recipient}:`, error);
+            }
+        }
 
         await WhatsAppDelivery.sendBulletinWithContent(
             message.recipient,

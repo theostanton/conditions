@@ -7,6 +7,7 @@ import {AsyncUtils} from "@utils/async";
 import {ContentDeliveryService} from "@services/contentDeliveryService";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
+import {CONDITIONS_REPORT_ENABLED} from "@constants/contentTypes";
 import type {ConditionsReport} from "@services/reportService";
 
 export namespace NotificationService {
@@ -164,14 +165,13 @@ export namespace NotificationService {
         // Use subscription content types or default to bulletin only
         const contentTypes = message.subscription || { bulletin: true };
 
-        // conditions_report disabled — not ready for production
-        // if (message.report && (message.subscription as any)?.conditions_report) {
-        //     try {
-        //         await bot.api.sendMessage(message.recipient, message.report.fullReport);
-        //     } catch (error) {
-        //         console.error(`Failed to send report to ${message.recipient}:`, error);
-        //     }
-        // }
+        if (CONDITIONS_REPORT_ENABLED && message.report && (message.subscription as any)?.conditions_report) {
+            try {
+                await bot.api.sendMessage(message.recipient, message.report.fullReport);
+            } catch (error) {
+                console.error(`Failed to send report to ${message.recipient}:`, error);
+            }
+        }
 
         // Subscription deliveries should show the Manage Subscription button
         await ContentDeliveryService.sendWithBotApi(bot, message.recipient, message.bulletin, massif, contentTypes, 'subscription');

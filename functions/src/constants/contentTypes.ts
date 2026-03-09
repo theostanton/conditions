@@ -9,11 +9,14 @@ export interface ContentTypeConfig {
     endpoint: string;
 }
 
+/** Feature flag — flip to true when conditions_report quality is production-ready */
+export const CONDITIONS_REPORT_ENABLED = false;
+
 /**
  * Centralized content type configuration
  * This is the single source of truth for content type labels, emojis, and API endpoints
  */
-export const CONTENT_TYPE_CONFIGS: ContentTypeConfig[] = [
+const ALL_CONTENT_TYPE_CONFIGS: ContentTypeConfig[] = [
     {
         key: 'bulletin',
         label: 'Bulletin',
@@ -56,14 +59,17 @@ export const CONTENT_TYPE_CONFIGS: ContentTypeConfig[] = [
         emoji: '⚠️',
         endpoint: 'montagne-risques'
     },
-    // conditions_report temporarily hidden — not ready for production
-    // {
-    //     key: 'conditions_report',
-    //     label: 'Conditions Report',
-    //     emoji: '🏔',
-    //     endpoint: ''
-    // }
+    {
+        key: 'conditions_report',
+        label: 'Conditions Report',
+        emoji: '🏔',
+        endpoint: ''
+    }
 ];
+
+export const CONTENT_TYPE_CONFIGS: ContentTypeConfig[] = CONDITIONS_REPORT_ENABLED
+    ? ALL_CONTENT_TYPE_CONFIGS
+    : ALL_CONTENT_TYPE_CONFIGS.filter(c => c.key !== 'conditions_report');
 
 /**
  * Get config for a specific content type

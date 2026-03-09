@@ -1,5 +1,5 @@
 import {getClient} from "@config/database";
-import {BulletinInfos, Platform, Subscription} from "@app-types";
+import {BulletinInfos, BulletinMetadata, Platform, Subscription} from "@app-types";
 import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 
@@ -102,7 +102,7 @@ export namespace Database {
             validFrom: Date;
             validTo: Date;
             riskLevel?: number;
-            metadata?: Record<string, any>;
+            metadata?: BulletinMetadata;
         }>
     ): Promise<void> {
         if (bulletins.length === 0) {
@@ -180,7 +180,7 @@ export namespace Database {
         valid_from: Date;
         valid_to: Date;
         risk_level?: number;
-        metadata?: Record<string, any>;
+        metadata?: BulletinMetadata;
     }>> {
         return withErrorReporting('getValidBulletins', async () => {
             const client = await getClient();
@@ -192,7 +192,7 @@ export namespace Database {
             );
             return result.rows.map(row => {
                 const metadataRaw = row.get('metadata_json');
-                let metadata: Record<string, any> | undefined;
+                let metadata: BulletinMetadata | undefined;
                 if (metadataRaw) {
                     metadata = typeof metadataRaw === 'string' ? JSON.parse(metadataRaw) : metadataRaw;
                 }

@@ -5,6 +5,7 @@ import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 import type {WeatherResult} from "@services/weatherService";
 import type {RouteInfo} from "@services/routeService";
+import type {BulletinMetadata} from "@app-types";
 
 export type WhatsAppReportFields = {
     risk: string;
@@ -23,7 +24,7 @@ type ReportInput = {
     massifName: string;
     riskLevel?: number;
     validFrom: Date;
-    metadata?: Record<string, any>;
+    metadata?: BulletinMetadata;
     weather: WeatherResult;
     routes: RouteInfo[];
 };

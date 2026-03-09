@@ -1,3 +1,11 @@
+export type BulletinMetadata = {
+    freezingLevel?: number,
+    snowStability?: string,
+    snowQuality?: string,
+    windDescription?: string,
+    precipitationForecast?: string,
+}
+
 export type Bulletin = {
     massif: string,
     filename: string,
@@ -6,7 +14,7 @@ export type Bulletin = {
     valid_to: Date,
     risk_level?: number,
     summary_text?: string,
-    metadata?: Record<string, any>,
+    metadata?: BulletinMetadata,
 }
 
 export type GeoJSONGeometry =

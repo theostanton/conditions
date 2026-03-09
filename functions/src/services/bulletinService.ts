@@ -1,6 +1,6 @@
 import {Storage} from '@google-cloud/storage';
 import {PROJECT_ID} from "@config/envs";
-import {Bulletin, BulletinInfos} from "@app-types";
+import {Bulletin, BulletinInfos, BulletinMetadata} from "@app-types";
 import {Database} from "@database/queries";
 import {formatDateTime, formatError} from "@utils/formatters";
 import {AsyncUtils} from "@utils/async";
@@ -22,7 +22,7 @@ export namespace BulletinService {
         validFrom: Date,
         validTo: Date,
         riskLevel?: number,
-        metadata?: Record<string, any>,
+        metadata?: BulletinMetadata,
     } | undefined> {
         const provider = getProviderForRegion(massifCode);
         if (!provider) {
@@ -33,7 +33,7 @@ export namespace BulletinService {
         if (!result) return undefined;
 
         // Collect enhanced metadata fields into a single object
-        const metadata: Record<string, any> = {};
+        const metadata: BulletinMetadata = {};
         if (result.freezingLevel !== undefined) metadata.freezingLevel = result.freezingLevel;
         if (result.snowStability) metadata.snowStability = result.snowStability;
         if (result.snowQuality) metadata.snowQuality = result.snowQuality;
@@ -213,7 +213,7 @@ export namespace BulletinService {
             validFrom: Date;
             validTo: Date;
             riskLevel?: number;
-            metadata?: Record<string, any>;
+            metadata?: BulletinMetadata;
         }> = [];
 
         for (let i = 0; i < results.length; i++) {

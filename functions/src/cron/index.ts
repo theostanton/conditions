@@ -1,5 +1,9 @@
 import {BulletinService} from "@services/bulletinService";
 import {ImageService} from "@services/imageService";
+import {WeatherService} from "@services/weatherService";
+import {RouteService} from "@services/routeService";
+import {ReportService, type ConditionsReport} from "@services/reportService";
+import {ReportCacheService} from "@services/reportCacheService";
 import {NotificationService} from "./services/notificationService";
 import {WhatsappNotificationService} from "@whatsapp/services/notificationService";
 import {WhatsAppDelivery} from "@whatsapp/flows/delivery";
@@ -28,6 +32,9 @@ export default async function () {
         ImageService.clearCache();
         ContentDeliveryService.clearTelegramCache();
         WhatsAppDelivery.clearMediaCache();
+        WeatherService.clearCache();
+        RouteService.clearCache();
+        ReportCacheService.clearCache();
 
         // Massifs with subscribers across all platforms (bulletins are platform-agnostic)
         stage = 'getSubscriberStats'
@@ -66,6 +73,60 @@ export default async function () {
         console.log(`validBulletins count=${validBulletins.length}`);
 
         if (validBulletins.length > 0) {
+            // Generate conditions reports for massifs that have report subscribers
+            stage = 'generateReports'
+            const reports = new Map<string, ConditionsReport>();
+            for (const bulletin of validBulletins) {
+                try {
+                    // Check cache first (memory → DB)
+                    const cached = await ReportCacheService.getCachedReport(bulletin.massif, bulletin.valid_from);
+                    if (cached) {
+                        reports.set(bulletin.massif, cached);
+                        continue;
+                    }
+
+                    // Generate new report
+                    const massif = MassifCache.findByCode(bulletin.massif);
+                    if (!massif) continue;
+
+                    const [weather, routes] = await Promise.all([
+                        WeatherService.fetchWeatherForMassif(bulletin.massif).catch(err => {
+                            console.error(`Weather fetch failed for ${massif.name}:`, err);
+                            return null;
+                        }),
+                        RouteService.fetchRoutesForMassif(bulletin.massif).catch(err => {
+                            console.error(`Route fetch failed for ${massif.name}:`, err);
+                            return [];
+                        }),
+                    ]);
+
+                    if (!weather) {
+                        console.log(`Skipping report for ${massif.name} — no weather data`);
+                        continue;
+                    }
+
+                    const report = await ReportService.generateReport({
+                        massifCode: bulletin.massif,
+                        massifName: massif.name,
+                        riskLevel: bulletin.risk_level,
+                        validFrom: bulletin.valid_from,
+                        metadata: bulletin.metadata,
+                        weather,
+                        routes,
+                    });
+
+                    reports.set(bulletin.massif, report);
+                    ReportCacheService.setInMemory(bulletin.massif, bulletin.valid_from, report);
+                    await ReportCacheService.saveToDb(bulletin.massif, bulletin.valid_from, report);
+
+                    console.log(`Generated report for ${massif.name} (${report.fullReport.length} chars)`);
+                } catch (error) {
+                    console.error(`Failed to generate report for ${bulletin.massif}:`, error);
+                    // Don't fail the whole cron — report generation is best-effort
+                }
+            }
+            console.log(`Generated ${reports.size} reports`);
+
             // Check subscription difference
             stage = 'generateSubscriptionDestinations'
             const destinations = await NotificationService.generateSubscriptionDestinations(validBulletins);
@@ -73,7 +134,7 @@ export default async function () {
 
             // Send to Telegram subscribers
             stage = 'telegramSend'
-            const telegramDelivered = await NotificationService.send(destinations);
+            const telegramDelivered = await NotificationService.send(destinations, reports);
 
             // WhatsApp delivery
             stage = 'whatsappGenerateDestinations'
@@ -81,11 +142,11 @@ export default async function () {
             console.log(`whatsappDestinations=${JSON.stringify(whatsappDestinations)}`);
 
             stage = 'whatsappSend'
-            const whatsappDelivered = await WhatsappNotificationService.send(whatsappDestinations);
+            const whatsappDelivered = await WhatsappNotificationService.send(whatsappDestinations, reports);
 
             execution.bulletins_delivered_count = telegramDelivered + whatsappDelivered;
 
-            execution.summary = `Deliveries made (telegram:${telegramDelivered}, whatsapp:${whatsappDelivered}). ${newBulletinsSummary}`;
+            execution.summary = `Deliveries made (telegram:${telegramDelivered}, whatsapp:${whatsappDelivered}). Reports: ${reports.size}. ${newBulletinsSummary}`;
         } else {
             execution.bulletins_delivered_count = 0
             execution.summary = `No deliveries necessary. ${newBulletinsSummary}`;

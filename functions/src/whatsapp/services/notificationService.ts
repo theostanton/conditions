@@ -4,8 +4,10 @@ import {Deliveries} from "@database/models/Deliveries";
 import {ArrayUtils} from "@utils/array";
 import {AsyncUtils} from "@utils/async";
 import {WhatsAppDelivery} from "@whatsapp/flows/delivery";
+import {WhatsAppClient} from "@whatsapp/client";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
+import type {ConditionsReport} from "@services/reportService";
 
 export namespace WhatsappNotificationService {
 
@@ -44,7 +46,7 @@ export namespace WhatsappNotificationService {
         return destinations;
     }
 
-    export async function send(destinations: BulletinDestination[]): Promise<number> {
+    export async function send(destinations: BulletinDestination[], reports?: Map<string, ConditionsReport>): Promise<number> {
         const messages = destinations.flatMap(destination => {
             const bulletin: Bulletin = {
                 massif: destination.massif,
@@ -57,7 +59,10 @@ export namespace WhatsappNotificationService {
 
             return destination.recipients.map(recipient => {
                 const subscription = destination.subscriptions.find(s => s.recipient === recipient);
-                return {recipient, bulletin, massif: destination.massif, subscription};
+                return {
+                    recipient, bulletin, massif: destination.massif, subscription,
+                    report: reports?.get(destination.massif),
+                };
             });
         });
 
@@ -138,6 +143,7 @@ export namespace WhatsappNotificationService {
         bulletin: Bulletin;
         massif: string;
         subscription?: Subscription;
+        report?: ConditionsReport;
     }): Promise<void> {
         const massif = MassifCache.findByCode(message.massif);
         if (!massif) {
@@ -145,6 +151,16 @@ export namespace WhatsappNotificationService {
         }
 
         const contentTypes = message.subscription || {bulletin: true};
+
+        // Send short report before bulletin if subscriber opted in
+        if (message.report && (message.subscription as any)?.conditions_report) {
+            try {
+                await WhatsAppClient.sendText(message.recipient, message.report.shortReport);
+            } catch (error) {
+                console.error(`[WhatsApp] Failed to send report to ${message.recipient}:`, error);
+                // Don't fail — fall through to bulletin
+            }
+        }
 
         await WhatsAppDelivery.sendBulletinWithContent(
             message.recipient,

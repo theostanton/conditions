@@ -13,6 +13,7 @@ import {Database} from "@database/queries";
 import {CronExecutions, type CronExecution} from "@database/models/CronExecutions";
 import {Analytics} from "@analytics/Analytics";
 import {MassifCache} from "@cache/MassifCache";
+import {formatError} from "@utils/formatters";
 
 export default async function () {
     const startTime = Date.now();
@@ -91,11 +92,11 @@ export default async function () {
 
                     const [weather, routes] = await Promise.all([
                         WeatherService.fetchWeatherForMassif(bulletin.massif).catch(err => {
-                            console.error(`Weather fetch failed for ${massif.name}:`, err);
+                            console.error(`Weather fetch failed for ${massif.name}: ${formatError(err)}`);
                             return null;
                         }),
                         RouteService.fetchRoutesForMassif(bulletin.massif).catch(err => {
-                            console.error(`Route fetch failed for ${massif.name}:`, err);
+                            console.error(`Route fetch failed for ${massif.name}: ${formatError(err)}`);
                             return [];
                         }),
                     ]);
@@ -121,7 +122,7 @@ export default async function () {
 
                     console.log(`Generated report for ${massif.name} (${report.fullReport.length} chars)`);
                 } catch (error) {
-                    console.error(`Failed to generate report for ${bulletin.massif}:`, error);
+                    console.error(`Failed to generate report for ${bulletin.massif}: ${formatError(error)}`);
                     // Don't fail the whole cron — report generation is best-effort
                 }
             }
@@ -156,7 +157,7 @@ export default async function () {
         execution.status = 'failed';
         execution.error_message = error instanceof Error ? error.message : String(error);
         execution.summary = `Failed at ${stage}: ${execution.error_message}`;
-        console.error(`Error in main cron logic on ${stage}:`, error);
+        console.error(`Error in main cron logic on ${stage}: ${formatError(error)}`);
 
         // Send real-time alert to admin about cron failure
         await Analytics.sendError(

@@ -2,7 +2,8 @@ import {Storage} from '@google-cloud/storage';
 import {PROJECT_ID} from "@config/envs";
 import {Bulletin, BulletinInfos} from "@app-types";
 import {Database} from "@database/queries";
-import {formatDateTime} from "@utils/formatters";
+import {formatDateTime, formatError} from "@utils/formatters";
+import {AsyncUtils} from "@utils/async";
 import {Analytics} from "@analytics/Analytics";
 import {MassifCache} from "@cache/MassifCache";
 import {getProviderForRegion} from "@providers/registry";
@@ -59,13 +60,16 @@ export namespace BulletinService {
         const massifsWithNoUpdate: string[] = []
         const failedMassifs: string[] = []
 
-        // Fetch all bulletin metadata in parallel
-        const results = await Promise.allSettled(
-            massifsWithSubscribers.map(async (massif) => {
+        // Fetch bulletin metadata in batches of 3 with 500ms gaps to avoid socket hang ups
+        const results = await AsyncUtils.batchSettled(
+            massifsWithSubscribers,
+            async (massif) => {
                 console.log(`Checking for new bulletin for massif=${massif}`);
                 const metadata = await fetchBulletinMetadata(massif);
                 return {massif, metadata};
-            })
+            },
+            3,
+            500,
         );
 
         // Process results
@@ -74,7 +78,7 @@ export namespace BulletinService {
             const massif = massifsWithSubscribers[i];
 
             if (result.status === 'rejected') {
-                console.error(`Failed to fetch bulletin for massif=${massif}:`, result.reason);
+                console.error(`Failed to fetch bulletin for massif=${massif}: ${formatError(result.reason)}`);
                 failedMassifs.push(massif);
                 continue;
             }

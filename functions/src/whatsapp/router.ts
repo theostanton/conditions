@@ -6,6 +6,8 @@ import type {WAWebhookPayload, WAMessage} from "@whatsapp/types";
 import {Analytics} from "@analytics/Analytics";
 import {geocode} from "@utils/geocode";
 import {GeocodeCache} from "@database/models/GeocodeCache";
+import {RouteService} from "@services/routeService";
+import type {RouteInfo} from "@services/routeService";
 
 export interface ConversationState {
     step: 'idle' | 'select_mountain' | 'select_massif';
@@ -335,6 +337,16 @@ export namespace WhatsAppRouter {
             return;
         }
 
+        // Route suggestions
+        if (callbackId.startsWith('routes:')) {
+            const massifCode = callbackId.substring('routes:'.length);
+            if (massifCode) {
+                await handleRouteSuggestions(from, massifCode);
+            }
+            clearState(from);
+            return;
+        }
+
         // Browse flow: mountain selection
         if (callbackId.startsWith('br:mtn:')) {
             const mountain = callbackId.substring('br:mtn:'.length);
@@ -380,5 +392,50 @@ export namespace WhatsAppRouter {
         // Unknown callback → welcome
         clearState(from);
         await sendWelcome(from);
+    }
+
+    async function handleRouteSuggestions(from: string, massifCode: string): Promise<void> {
+        const massif = MassifCache.findByCode(massifCode);
+        if (!massif) {
+            await WhatsAppClient.sendText(from, 'Sorry, massif not found.');
+            return;
+        }
+
+        Analytics.send(`WA ${from} routes: ${massif.name}`).catch(console.error);
+
+        try {
+            const routes = await RouteService.fetchRoutesForMassif(massifCode);
+
+            if (routes.length === 0) {
+                await WhatsAppClient.sendText(from, `No ski touring routes found near ${massif.name}.`);
+                return;
+            }
+
+            const text = formatRouteMessage(massif.name, routes.slice(0, 5));
+            await WhatsAppClient.sendText(from, text);
+        } catch (error) {
+            console.error(`Failed to fetch routes for ${massif.name}:`, error);
+            await WhatsAppClient.sendText(from, `Sorry, couldn't fetch routes for ${massif.name} right now.`);
+        }
+    }
+
+    function formatRouteMessage(massifName: string, routes: RouteInfo[]): string {
+        let msg = `🎿 *Ski touring routes near ${massifName}*\n`;
+
+        for (const route of routes) {
+            msg += `\n*${route.name}*`;
+            if (route.difficulty) msg += ` (${route.difficulty})`;
+            const parts: string[] = [];
+            if (route.elevationMin || route.elevationMax) {
+                parts.push(`${route.elevationMin ?? '?'}m – ${route.elevationMax ?? '?'}m`);
+            }
+            if (route.aspects?.length) {
+                parts.push(route.aspects.join('/'));
+            }
+            if (parts.length) msg += `\n${parts.join(' · ')}`;
+            msg += `\n${route.url}\n`;
+        }
+
+        return msg;
     }
 }

@@ -91,8 +91,8 @@ export namespace ReportService {
             });
 
             const text = response.content
-                .filter(block => block.type === "text")
-                .map(block => (block as Anthropic.TextBlock).text)
+                .filter((block: Anthropic.ContentBlock) => block.type === "text")
+                .map((block: Anthropic.ContentBlock) => (block as Anthropic.TextBlock).text)
                 .join("\n");
 
             // Split into full and short reports

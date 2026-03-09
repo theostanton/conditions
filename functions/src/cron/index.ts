@@ -130,7 +130,7 @@ export default async function () {
 
             // Check subscription difference
             stage = 'generateSubscriptionDestinations'
-            const destinations = await NotificationService.generateSubscriptionDestinations(validBulletins);
+            const destinations = await NotificationService.generateDestinations(validBulletins);
             console.log(`destinations=${JSON.stringify(destinations)}`);
 
             // Send to Telegram subscribers
@@ -139,7 +139,7 @@ export default async function () {
 
             // WhatsApp delivery
             stage = 'whatsappGenerateDestinations'
-            const whatsappDestinations = await WhatsappNotificationService.generateSubscriptionDestinations(validBulletins);
+            const whatsappDestinations = await WhatsappNotificationService.generateDestinations(validBulletins);
             console.log(`whatsappDestinations=${JSON.stringify(whatsappDestinations)}`);
 
             stage = 'whatsappSend'

@@ -5,6 +5,7 @@ import axios, {AxiosHeaders} from "axios";
 import {MassifCache} from "@cache/MassifCache";
 import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
+import {createPromiseCache} from "@utils/cache";
 
 const meteoFranceHeaders: AxiosHeaders = new AxiosHeaders();
 meteoFranceHeaders.set('apikey', METEOFRANCE_TOKEN);
@@ -13,9 +14,7 @@ export namespace ImageService {
 
     export type ImageType = Exclude<ContentTypeKey, 'bulletin'>;
 
-    // In-memory cache: avoids re-fetching the same image from Météo-France
-    // for every subscriber during a cron run. Keyed by "massifCode:imageType".
-    const imageCache = new Map<string, Promise<FetchedImage>>();
+    const imageCache = createPromiseCache<FetchedImage>();
 
     /**
      * Clear the image cache. Call at the start of each cron run.
@@ -98,16 +97,7 @@ export namespace ImageService {
      */
     export function fetchImage(massifCode: string, imageType: ImageType, bulletin: Bulletin): Promise<FetchedImage> {
         const cacheKey = `${massifCode}:${imageType}`;
-        const cached = imageCache.get(cacheKey);
-        if (cached) return cached;
-
-        const promise = fetchImageFromApi(massifCode, imageType, bulletin);
-        imageCache.set(cacheKey, promise);
-
-        // Remove from cache on failure so retries can re-fetch
-        promise.catch(() => imageCache.delete(cacheKey));
-
-        return promise;
+        return imageCache.getOrCreate(cacheKey, () => fetchImageFromApi(massifCode, imageType, bulletin));
     }
 
     async function fetchImageFromApi(massifCode: string, imageType: ImageType, bulletin: Bulletin): Promise<FetchedImage> {

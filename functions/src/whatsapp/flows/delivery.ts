@@ -3,6 +3,7 @@ import {ImageService} from "@services/imageService";
 import {WhatsAppClient} from "@whatsapp/client";
 import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
+import {createPromiseCache} from "@utils/cache";
 import type {TemplateComponent} from "@whatsapp/types";
 import type {WhatsAppReportFields} from "@services/reportService";
 
@@ -136,25 +137,16 @@ export async function sendReportTemplate(
 
 export namespace WhatsAppDelivery {
 
-    // Cache uploaded media IDs to avoid re-uploading the same image buffer
-    // for every recipient during a cron run. Keyed by image filename.
-    const mediaIdCache = new Map<string, Promise<string>>();
+    const mediaIdCache = createPromiseCache<string>();
 
     export function clearMediaCache(): void {
         mediaIdCache.clear();
     }
 
     function getOrUploadMedia(image: ImageService.FetchedImage): Promise<string> {
-        const cached = mediaIdCache.get(image.filename);
-        if (cached) return cached;
-
-        const promise = WhatsAppClient.uploadMedia(image.data, 'image/png', image.filename);
-        mediaIdCache.set(image.filename, promise);
-
-        // Remove from cache on failure so retries can re-upload
-        promise.catch(() => mediaIdCache.delete(image.filename));
-
-        return promise;
+        return mediaIdCache.getOrCreate(image.filename, () =>
+            WhatsAppClient.uploadMedia(image.data, 'image/png', image.filename)
+        );
     }
 
     export async function sendBulletinWithContent(

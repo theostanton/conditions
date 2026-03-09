@@ -5,9 +5,16 @@ import {Analytics} from "@analytics/Analytics";
 import type {WeatherResult} from "@services/weatherService";
 import type {RouteInfo} from "@services/routeService";
 
+export type WhatsAppReportFields = {
+    risk: string;
+    weather: string;
+    snow: string;
+    tip: string;
+};
+
 export type ConditionsReport = {
     fullReport: string;
-    shortReport: string;
+    whatsapp: WhatsAppReportFields;
 };
 
 type ReportInput = {
@@ -53,18 +60,12 @@ TELEGRAM REPORT SECTIONS (≤3500 chars total):
 
 ☀️ Sunrise {time} · Sunset {time}
 
-WHATSAPP SHORT REPORT (≤900 chars total):
-🏔 {Massif Name} — {date}
-
-⚠️ Risk: {level}/5 — {one-line risk summary}
-
-🌡️ {Key weather numbers: freezing level, temps, fresh snow}
-
-❄️ Best snow: {aspect and elevation recommendation}
-
-⭐ {Timing recommendation with sunrise}
-
-🎿 Top pick: {Best route with grade and one-line reason}`;
+WHATSAPP FIELDS (output after ---SHORT--- separator, one field per line, format: FIELD_NAME: value):
+Each field must be a single line with NO newlines. These are injected into a WhatsApp template.
+- RISK: One-line avalanche risk summary (e.g. "3/5 — Persistent slab on N slopes >2200m. Human-triggered avalanches likely.")
+- WEATHER: Key weather numbers in one line (e.g. "Freezing level 2400m rising to 2800m. 3000m: -5°C. 10cm fresh snow above 2500m.")
+- SNOW: Best snow conditions in one line (e.g. "N/NE aspects above 2200m — powder from overnight. S aspects crusting by midday.")
+- TIP: Timing or safety tip in one line (e.g. "Early start recommended (sunrise 07:12). Descend before 13:00.")`;
 
 const RISK_LABELS: Record<number, string> = {
     1: "Low",
@@ -95,20 +96,17 @@ export namespace ReportService {
                 .map((block: Anthropic.ContentBlock) => (block as Anthropic.TextBlock).text)
                 .join("\n");
 
-            // Split into full and short reports
+            // Split into full report and WhatsApp fields
             const parts = text.split(/---SHORT---/i);
             const fullReport = (parts[0] || text).trim();
-            const shortReport = (parts[1] || generateFallbackShort(fullReport)).trim();
+            const whatsapp = parseWhatsAppFields(parts[1] || '', fullReport);
 
-            // Enforce character limits
+            // Enforce Telegram character limit
             const truncatedFull = fullReport.length > 3500
                 ? fullReport.substring(0, 3497) + "..."
                 : fullReport;
-            const truncatedShort = shortReport.length > 900
-                ? shortReport.substring(0, 897) + "..."
-                : shortReport;
 
-            return {fullReport: truncatedFull, shortReport: truncatedShort};
+            return {fullReport: truncatedFull, whatsapp};
         } catch (error) {
             console.error(`Failed to generate report for ${input.massifName}:`, error);
 
@@ -194,7 +192,7 @@ AVALANCHE DATA:
             prompt += `\n\nNo route data available — skip the route suggestions section.`;
         }
 
-        prompt += `\n\nGenerate the FULL Telegram report first (≤3500 chars), then output the separator "---SHORT---" on its own line, then the WhatsApp short report (≤900 chars).`;
+        prompt += `\n\nGenerate the FULL Telegram report first (≤3500 chars), then output the separator "---SHORT---" on its own line, then the 4 WhatsApp fields (RISK, WEATHER, SNOW, TIP), each on its own line as "FIELD: value".`;
 
         return prompt;
     }
@@ -213,17 +211,30 @@ AVALANCHE DATA:
         }
     }
 
-    function generateFallbackShort(fullReport: string): string {
-        // If Claude didn't produce a short version, extract key lines
-        const lines = fullReport.split('\n');
-        const keyLines = lines.filter(line =>
-            line.startsWith('🏔') ||
-            line.startsWith('⚠️') ||
-            line.startsWith('🌡️') ||
-            line.startsWith('❄️') ||
-            line.startsWith('⭐') ||
-            line.startsWith('🎿')
-        );
-        return keyLines.slice(0, 6).join('\n');
+    function parseWhatsAppFields(fieldsText: string, fullReport: string): WhatsAppReportFields {
+        const lines = fieldsText.trim().split('\n');
+        const fields: Record<string, string> = {};
+        for (const line of lines) {
+            const match = line.match(/^(RISK|WEATHER|SNOW|TIP|ROUTE):\s*(.+)$/i);
+            if (match) {
+                fields[match[1].toLowerCase()] = match[2].trim();
+            }
+        }
+
+        // Fallback: extract from full report if Claude didn't produce structured fields
+        return {
+            risk: fields.risk || extractAfterEmoji(fullReport, '⚠️'),
+            weather: fields.weather || extractAfterEmoji(fullReport, '🌡️'),
+            snow: fields.snow || extractAfterEmoji(fullReport, '❄️'),
+            tip: fields.tip || extractAfterEmoji(fullReport, '⭐'),
+        };
+    }
+
+    function extractAfterEmoji(text: string, emoji: string): string {
+        const idx = text.indexOf(emoji);
+        if (idx === -1) return '';
+        const afterEmoji = text.substring(idx + emoji.length);
+        const firstLine = afterEmoji.split('\n').find(l => l.trim().length > 0);
+        return (firstLine || '').trim().replace(/^[^a-zA-Z0-9]*/, '');
     }
 }

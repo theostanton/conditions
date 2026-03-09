@@ -159,7 +159,7 @@ export namespace WhatsappNotificationService {
                     message.recipient,
                     message.bulletin,
                     massif,
-                    message.report.shortReport,
+                    message.report.whatsapp,
                 );
                 // Report template includes the PDF, so skip sending bulletin again
                 // but still send additional images if subscribed

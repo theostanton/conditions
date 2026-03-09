@@ -47,7 +47,12 @@ export namespace MassifCache {
 
         // Build slug index
         for (const massif of allMassifs) {
-            slugIndex.set(toSlug(massif.name), massif);
+            const slug = toSlug(massif.name);
+            const existing = slugIndex.get(slug);
+            if (existing) {
+                console.warn(`Slug collision: "${slug}" for both "${existing.name}" and "${massif.name}"`);
+            }
+            slugIndex.set(slug, massif);
         }
 
         console.log(`Cached ${allMassifs.length} massifs across ${mountainsCache.length} mountains, ${countriesCache.length} countries`);

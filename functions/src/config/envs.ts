@@ -19,3 +19,5 @@ export const WA_ACCESS_TOKEN = process.env.WA_ACCESS_TOKEN as string;
 export const WA_VERIFY_TOKEN = process.env.WA_VERIFY_TOKEN as string;
 
 export const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY as string;
+
+export const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY as string;

@@ -46,24 +46,41 @@ and the freezing level rises.
 ☀️ Sunrise 07:12 · Sunset 18:41
 ```
 
-## WhatsApp (short report, ≤900 chars)
+## WhatsApp (template with named variables, each variable is a single line — no newlines)
 
+Template body:
 ```
-🏔 Mont-Blanc — 9th March
+*Conditions report for {{massif_name}}*
+📅 {{date}}
 
-⚠️ Risk: 3/5 — Persistent slab on N slopes >2200m. Human-triggered
-avalanches likely on steep terrain.
+⚠️ *Avalanche Risk*
+{{risk}}
 
-🌡️ Freezing level 2400m rising to 2800m. Summit -19°C, 3000m -5°C.
-10cm fresh snow overnight above 2500m.
+🌡️  *Weather*
+{{weather}}
 
-❄️ Best snow: N/NE aspects above 2200m — powder from overnight.
-South aspects crusting up by midday.
+❄️ *Best snow*
+{{snow}}
 
-⭐ Early start recommended (sunrise 07:12). Descend before 13:00.
+⭐ *Tip*
+{{tip}}
 
-🎿 Top pick: Col du Midi (PD) — sheltered powder on N aspect.
+_Check being for going out_
 ```
+
+Buttons:
+- [0] "Suggest routes" (payload: `routes:<massif_code>`)
+- [1] "Unsubscribe" (payload: `unsub:<massif_code>`)
+
+Example variable values:
+| Variable | Example |
+|---|---|
+| `massif_name` | `Mont-Blanc` |
+| `date` | `9th March` |
+| `risk` | `3/5 — Persistent slab on N slopes >2200m. Human-triggered avalanches likely.` |
+| `weather` | `Freezing level 2400m rising to 2800m. 3000m: -5°C. 10cm fresh snow above 2500m.` |
+| `snow` | `N/NE aspects above 2200m — powder from overnight. S aspects crusting by midday.` |
+| `tip` | `Early start recommended (sunrise 07:12). Descend before 13:00.` |
 
 ## Format Rules (Claude prompt instructions)
 
@@ -75,7 +92,7 @@ South aspects crusting up by midday.
 - Short version prioritises safety info and actionable advice
 - Friendly but authoritative tone — like a local mountain guide
 - Telegram report must be ≤3500 characters (Telegram message limit)
-- WhatsApp report must be ≤900 characters (template body limit)
+- WhatsApp uses named template variables — each field is a single line, no newlines allowed
 
 ## Data Source Mapping
 

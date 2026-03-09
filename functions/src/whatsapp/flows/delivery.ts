@@ -3,6 +3,7 @@ import {ImageService} from "@services/imageService";
 import {WhatsAppClient} from "@whatsapp/client";
 import {Analytics} from "@analytics/Analytics";
 import type {TemplateComponent} from "@whatsapp/types";
+import type {WhatsAppReportFields} from "@services/reportService";
 
 function ordinalSuffix(n: number): string {
     if (n >= 11 && n <= 13) return 'th';
@@ -59,8 +60,30 @@ export async function sendBulletinTemplate(to: string, bulletin: Bulletin, massi
 /**
  * Send a conditions report via the 'conditions_report' template.
  * Falls back to the 'bulletin' template if the report template isn't approved yet.
+ *
+ * Template body:
+ *   *Conditions report for {{massif_name}}*
+ *   📅 {{date}}
+ *   ⚠️ *Avalanche Risk*  {{risk}}
+ *   🌡️ *Weather*  {{weather}}
+ *   ❄️ *Best snow*  {{snow}}
+ *   ⭐ *Tip*  {{tip}}
+ *   _Check being for going out_
+ *
+ * Buttons:
+ *   [0] Quick reply: "Suggest routes" (payload: routes:<massif_code>)
+ *   [1] Quick reply: "Unsubscribe" (payload: unsub:<massif_code>)
  */
-export async function sendReportTemplate(to: string, bulletin: Bulletin, massif: Massif, reportText: string): Promise<void> {
+export async function sendReportTemplate(
+    to: string,
+    bulletin: Bulletin,
+    massif: Massif,
+    fields: WhatsAppReportFields,
+): Promise<void> {
+    const day = bulletin.valid_to.getUTCDate();
+    const suffix = ordinalSuffix(day);
+    const month = bulletin.valid_to.toLocaleString('en-GB', {month: 'long', timeZone: 'UTC'});
+
     const components: TemplateComponent[] = [
         {
             type: 'header',
@@ -71,16 +94,28 @@ export async function sendReportTemplate(to: string, bulletin: Bulletin, massif:
         },
         {
             type: 'body',
-            parameters: [{
-                type: 'text',
-                parameter_name: 'text',
-                text: reportText,
-            }],
+            parameters: [
+                {type: 'text', parameter_name: 'massif_name', text: massif.name},
+                {type: 'text', parameter_name: 'date', text: `${day}${suffix} ${month}`},
+                {type: 'text', parameter_name: 'risk', text: fields.risk},
+                {type: 'text', parameter_name: 'weather', text: fields.weather},
+                {type: 'text', parameter_name: 'snow', text: fields.snow},
+                {type: 'text', parameter_name: 'tip', text: fields.tip},
+            ],
         },
         {
             type: 'button',
             sub_type: 'quick_reply',
             index: 0,
+            parameters: [{
+                type: 'payload',
+                payload: `routes:${massif.code}`,
+            }],
+        },
+        {
+            type: 'button',
+            sub_type: 'quick_reply',
+            index: 1,
             parameters: [{
                 type: 'payload',
                 payload: `unsub:${massif.code}`,

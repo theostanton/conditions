@@ -27,7 +27,7 @@ export namespace ReportCacheService {
         try {
             const client = await getClient();
             const result = await client.query(
-                `SELECT report_full, report_short FROM conditions_reports
+                `SELECT report_full, report_json FROM conditions_reports
                  WHERE massif = $1 AND bulletin_valid_from = $2
                  LIMIT 1`,
                 [massifCode, validFrom]
@@ -36,10 +36,16 @@ export namespace ReportCacheService {
             if (result.rows.length === 0) return null;
 
             const row = result.rows[0];
-            return {
-                fullReport: row.get('report_full') as string,
-                shortReport: row.get('report_short') as string,
-            };
+            const reportJson = row.get('report_json') as string;
+            try {
+                return JSON.parse(reportJson) as ConditionsReport;
+            } catch {
+                // Fallback for old rows before whatsapp fields were added
+                return {
+                    fullReport: row.get('report_full') as string,
+                    whatsapp: {risk: '', weather: '', snow: '', tip: ''},
+                };
+            }
         } catch (error) {
             console.error(`Failed to read cached report for ${massifCode}:`, error);
             return null;
@@ -63,7 +69,7 @@ export namespace ReportCacheService {
                     report_json = $5,
                     prompt_version = $6,
                     generated_at = NOW()`,
-                [massifCode, validFrom, report.fullReport, report.shortReport, JSON.stringify(report), promptVersion]
+                [massifCode, validFrom, report.fullReport, Object.values(report.whatsapp).join(' | '), JSON.stringify(report), promptVersion]
             );
         } catch (error) {
             console.error(`Failed to save report for ${massifCode}:`, error);

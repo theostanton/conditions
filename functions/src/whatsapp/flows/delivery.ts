@@ -56,6 +56,48 @@ export async function sendBulletinTemplate(to: string, bulletin: Bulletin, massi
     await WhatsAppClient.sendTemplate(to, 'bulletin', 'en', components);
 }
 
+/**
+ * Send a conditions report via the 'conditions_report' template.
+ * Falls back to the 'bulletin' template if the report template isn't approved yet.
+ */
+export async function sendReportTemplate(to: string, bulletin: Bulletin, massif: Massif, reportText: string): Promise<void> {
+    const components: TemplateComponent[] = [
+        {
+            type: 'header',
+            parameters: [{
+                type: 'document',
+                document: {link: bulletin.public_url, filename: bulletin.filename.replace(/^\/tmp\//, '')},
+            }],
+        },
+        {
+            type: 'body',
+            parameters: [{
+                type: 'text',
+                parameter_name: 'text',
+                text: reportText,
+            }],
+        },
+        {
+            type: 'button',
+            sub_type: 'quick_reply',
+            index: 0,
+            parameters: [{
+                type: 'payload',
+                payload: `unsub:${massif.code}`,
+            }],
+        },
+    ];
+
+    try {
+        console.log(`[sendReportTemplate] Sending conditions_report template to ${to}`);
+        await WhatsAppClient.sendTemplate(to, 'conditions_report', 'en', components);
+    } catch (error) {
+        // Template may not be approved yet — fall back to bulletin template
+        console.warn(`[sendReportTemplate] conditions_report template failed, falling back to bulletin template:`, error);
+        await sendBulletinTemplate(to, bulletin, massif);
+    }
+}
+
 export namespace WhatsAppDelivery {
 
     // Cache uploaded media IDs to avoid re-uploading the same image buffer

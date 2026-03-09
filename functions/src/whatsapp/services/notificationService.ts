@@ -3,8 +3,7 @@ import {Database} from "@database/queries";
 import {Deliveries} from "@database/models/Deliveries";
 import {ArrayUtils} from "@utils/array";
 import {AsyncUtils} from "@utils/async";
-import {WhatsAppDelivery} from "@whatsapp/flows/delivery";
-import {WhatsAppClient} from "@whatsapp/client";
+import {WhatsAppDelivery, sendReportTemplate} from "@whatsapp/flows/delivery";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
 import type {ConditionsReport} from "@services/reportService";
@@ -152,13 +151,29 @@ export namespace WhatsappNotificationService {
 
         const contentTypes = message.subscription || {bulletin: true};
 
-        // Send short report before bulletin if subscriber opted in
+        // If subscriber opted in to conditions_report, send via report template
+        // (combines report text + PDF in a single template message)
         if (message.report && (message.subscription as any)?.conditions_report) {
             try {
-                await WhatsAppClient.sendText(message.recipient, message.report.shortReport);
+                await sendReportTemplate(
+                    message.recipient,
+                    message.bulletin,
+                    massif,
+                    message.report.shortReport,
+                );
+                // Report template includes the PDF, so skip sending bulletin again
+                // but still send additional images if subscribed
+                const imagesOnly = {...contentTypes, bulletin: false};
+                await WhatsAppDelivery.sendBulletinWithContent(
+                    message.recipient,
+                    message.bulletin,
+                    massif,
+                    imagesOnly,
+                );
+                return;
             } catch (error) {
-                console.error(`[WhatsApp] Failed to send report to ${message.recipient}:`, error);
-                // Don't fail — fall through to bulletin
+                console.error(`[WhatsApp] Failed to send report template to ${message.recipient}:`, error);
+                // Fall through to regular bulletin delivery
             }
         }
 

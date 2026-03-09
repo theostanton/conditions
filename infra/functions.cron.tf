@@ -36,6 +36,7 @@ resource "google_cloudfunctions2_function" "cron" {
       ADMIN_CHAT_ID       = var.admin_chat_id
       WA_PHONE_NUMBER_ID  = var.wa_phone_number_id
       WA_ACCESS_TOKEN     = var.wa_access_token
+      ANTHROPIC_API_KEY   = var.anthropic_api_key
     }
   }
 

@@ -65,6 +65,15 @@ export function getCentroid(geometry: GeoJSONGeometry): [number, number] {
 }
 
 /**
+ * Check if a geometry has usable coordinates (non-empty rings).
+ * Catches cases like Trentino where geometry exists but contains no polygon points.
+ */
+export function hasUsableGeometry(geometry: GeoJSONGeometry): boolean {
+    return (geometry.type === 'Polygon' && geometry.coordinates?.[0]?.length > 0) ||
+        (geometry.type === 'MultiPolygon' && geometry.coordinates?.some(p => p[0]?.length > 0));
+}
+
+/**
  * Check if a point [lng, lat] is inside a GeoJSON geometry.
  * Supports Polygon and MultiPolygon.
  */

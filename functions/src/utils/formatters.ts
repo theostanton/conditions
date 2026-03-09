@@ -18,3 +18,13 @@ export function formatDateTime(date: Date): string {
 
     return `${year}-${month}-${day} ${hours}:${minutes}`;
 }
+
+export function formatError(error: unknown): string {
+    if (error && typeof error === 'object' && 'isAxiosError' in error) {
+        const e = error as any;
+        const status = e.response?.status ?? 'no response';
+        const url = e.config?.url ?? 'unknown URL';
+        return `${url} → ${status}: ${e.message}`;
+    }
+    return error instanceof Error ? error.message : String(error);
+}

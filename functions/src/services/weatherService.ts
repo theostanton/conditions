@@ -1,6 +1,8 @@
 import axios from "axios";
 import {MassifCache} from "@cache/MassifCache";
-import {getCentroid} from "@utils/geo";
+import {getCentroid, hasUsableGeometry} from "@utils/geo";
+import {AsyncUtils} from "@utils/async";
+import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 
 export type WeatherData = {
@@ -61,16 +63,22 @@ export namespace WeatherService {
         if (!massif?.geometry) {
             throw new Error(`No geometry for massif ${massifCode}`);
         }
+        if (!hasUsableGeometry(massif.geometry)) {
+            throw new Error(`Geometry has no usable coordinates for massif ${massifCode}`);
+        }
 
         const [lng, lat] = getCentroid(massif.geometry);
 
         try {
-            // Fetch weather for each elevation level in parallel
-            const elevationResults = await Promise.all(
-                ELEVATIONS.map(elevation => fetchForElevation(lat, lng, elevation))
-            );
+            // Fetch weather for each elevation level sequentially with delays to avoid 429s
+            const elevationResults: ElevationHourly[][] = [];
+            for (const elevation of ELEVATIONS) {
+                if (elevationResults.length > 0) await AsyncUtils.delay(200);
+                elevationResults.push(await fetchForElevation(lat, lng, elevation));
+            }
 
             // Fetch freezing level and sun times (at base elevation)
+            await AsyncUtils.delay(200);
             const metaResponse = await axios.get(OPEN_METEO_BASE, {
                 params: {
                     latitude: lat.toFixed(4),
@@ -111,7 +119,7 @@ export namespace WeatherService {
             return {hourly, freezingLevelM, dailySnowfallCm, sunrise, sunset};
         } catch (error) {
             const massifName = MassifCache.findByCode(massifCode)?.name || `massif ${massifCode}`;
-            console.error(`Failed to fetch weather for ${massifName}:`, error);
+            console.error(`Failed to fetch weather for ${massifName}: ${formatError(error)}`);
 
             await Analytics.sendError(
                 error as Error,

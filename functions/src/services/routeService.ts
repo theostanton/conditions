@@ -1,6 +1,7 @@
 import axios from "axios";
 import {MassifCache} from "@cache/MassifCache";
-import {getCentroid} from "@utils/geo";
+import {hasUsableGeometry} from "@utils/geo";
+import {formatError} from "@utils/formatters";
 import {Analytics} from "@analytics/Analytics";
 import type {GeoJSONGeometry} from "@app-types";
 
@@ -42,6 +43,9 @@ export namespace RouteService {
         if (!massif?.geometry) {
             throw new Error(`No geometry for massif ${massifCode}`);
         }
+        if (!hasUsableGeometry(massif.geometry)) {
+            throw new Error(`Geometry has no usable coordinates for massif ${massifCode}`);
+        }
 
         try {
             const bbox = computeBbox(massif.geometry);
@@ -64,7 +68,7 @@ export namespace RouteService {
                 .slice(0, 10);
         } catch (error) {
             const massifName = massif?.name || `massif ${massifCode}`;
-            console.error(`Failed to fetch routes for ${massifName}:`, error);
+            console.error(`Failed to fetch routes for ${massifName}: ${formatError(error)}`);
 
             await Analytics.sendError(
                 error as Error,

@@ -5,6 +5,7 @@ import {XMLParser} from "fast-xml-parser";
 import {METEOFRANCE_TOKEN} from "@config/envs";
 import {MassifCache} from "@cache/MassifCache";
 import {Analytics} from "@analytics/Analytics";
+import {AsyncUtils} from "@utils/async";
 import type {ContentTypes} from "@app-types";
 import type {BulletinMetadata, BulletinProvider} from "./types";
 
@@ -18,9 +19,13 @@ export class MeteoFranceProvider implements BulletinProvider {
 
     async fetchBulletinMetadata(regionCode: string): Promise<BulletinMetadata | undefined> {
         try {
-            const response = await axios.get(
-                `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${regionCode}&format=xml`,
-                {headers: meteoFranceHeaders, timeout: 10000}
+            const response = await AsyncUtils.retry(
+                () => axios.get(
+                    `https://public-api.meteofrance.fr/public/DPBRA/v1/massif/BRA?id-massif=${regionCode}&format=xml`,
+                    {headers: meteoFranceHeaders, timeout: 10000}
+                ),
+                2,
+                1500,
             );
 
             const xml = response.data as string;

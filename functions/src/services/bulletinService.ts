@@ -60,7 +60,7 @@ export namespace BulletinService {
         const massifsWithNoUpdate: string[] = []
         const failedMassifs: string[] = []
 
-        // Fetch bulletin metadata in batches of 3 with 500ms gaps to avoid socket hang ups
+        // Fetch bulletin metadata one at a time with 1s gaps to avoid socket hang ups
         const results = await AsyncUtils.batchSettled(
             massifsWithSubscribers,
             async (massif) => {
@@ -68,8 +68,8 @@ export namespace BulletinService {
                 const metadata = await fetchBulletinMetadata(massif);
                 return {massif, metadata};
             },
-            3,
-            500,
+            1,
+            1000,
         );
 
         // Process results

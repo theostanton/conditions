@@ -7,6 +7,29 @@ export namespace AsyncUtils {
     }
 
     /**
+     * Retries a function with exponential backoff on failure.
+     */
+    export async function retry<T>(
+        fn: () => Promise<T>,
+        maxRetries: number = 2,
+        baseDelayMs: number = 1000,
+    ): Promise<T> {
+        let lastError: unknown;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return await fn();
+            } catch (error) {
+                lastError = error;
+                if (attempt < maxRetries) {
+                    const backoff = baseDelayMs * Math.pow(2, attempt);
+                    await delay(backoff);
+                }
+            }
+        }
+        throw lastError;
+    }
+
+    /**
      * Like Promise.allSettled but processes items in batches with delays between them.
      * Limits concurrency to avoid overwhelming external APIs.
      */
